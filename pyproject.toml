@@ -1,0 +1,31 @@
+[tool.poetry]
+name = "mldatafind"
+version = "0.1.0"
+description = "Tools for gravitational wave data discovery"
+authors = ["ethan.marx <ethan.marx@ligo.org>"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.9"
+
+
+[tool.poetry.group.dev.dependencies]
+pre-commit = "^2.16"
+
+[tool.black]
+line-length = 79
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.tox
+  | _build
+  | dist
+  | docs
+)/
+'''
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
