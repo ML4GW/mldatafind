@@ -1,14 +1,15 @@
 from collections import defaultdict
 from concurrent.futures import FIRST_COMPLETED, wait
 from functools import partial
-from io import filter_and_sort_files, read_timeseries
 from pathlib import Path
 from typing import Callable, Iterable, Iterator, List, Optional
 
 import numpy as np
 from gwpy.segments import DataQualityDict, Segment, SegmentList
 from gwpy.timeseries import TimeSeries, TimeSeriesDict
-from parallelize import AsyncExecutor
+
+from mldatafind.io import filter_and_sort_files, read_timeseries
+from mldatafind.parallelize import AsyncExecutor
 
 MEMORY_LIMIT = 0  # ? in bytes
 BITS_PER_BYTE = 8
@@ -99,13 +100,13 @@ def query_segments(
         tf,
     )
 
-    segments = segments.intersection().active.copy()
+    segments = np.array(segments.intersection().active.copy())
 
     # if min duration is passed, restrict to those segments
     mask = np.ones(len(segments), dtype=bool)
 
     if min_duration is not None:
-        durations = [float(seg[1] - seg[0]) for seg in segments]
+        durations = np.array([float(seg[1] - seg[0]) for seg in segments])
         mask &= durations > min_duration
 
     segments = segments[mask]
@@ -136,6 +137,10 @@ def _data_generator(
             while current_memory < memory_limit:
                 segment = segments.pop()
                 duration = segment[1] - segment[0]
+
+                # TODO: memory depends on sample rate;
+                # for strain channels this is typically 16khz,
+                # but unknown for auxiliary channels
                 segment_memory = _calc_memory(len(channels), duration)
 
                 future = executor.submit(method, channels, *segment)

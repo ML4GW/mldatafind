@@ -4,6 +4,7 @@ from typing import Iterable, List, Tuple, Union
 
 import h5py
 import numpy as np
+from gwpy.timeseries import TimeSeries, TimeSeriesDict
 
 PATH_LIKE = Union[str, Path]
 MAYBE_PATHS = Union[PATH_LIKE, Iterable[PATH_LIKE]]
@@ -74,16 +75,14 @@ def read_timeseries(path: Path, *channels: str) -> Tuple["np.ndarray", ...]:
         path: path to h5 file to read
         channels: channel name to read
 
-    Returns tuple where the first n_channel elements correspond to
-    the datasets of the specified channels, and the last element
-    is the array of corresponding times
+    Returns TimeSeriesDict
     """
 
-    with h5py.File(path, "r") as f:
-        t0 = f["t0"][:]
-        sample_rate = f["sample_rate"][:]
+    ts_dict = TimeSeriesDict()
 
-        outputs = []
+    with h5py.File(path, "r") as f:
+        t0 = f.attrs["t0"]
+
         for channel in channels:
             try:
                 dataset = f[channel]
@@ -93,11 +92,13 @@ def read_timeseries(path: Path, *channels: str) -> Tuple["np.ndarray", ...]:
                         path.fname, channel
                     )
                 )
-            outputs.append(dataset[:].reshape(-1))
+            sample_rate = dataset.attrs["sample_rate"]
 
-        duration = outputs.shape[-1] / sample_rate
-        times = np.arange(0, t0 + duration, 1 / sample_rate)
-    return tuple(outputs) + (times,)
+            ts_dict[channel] = TimeSeries(
+                dataset[:], t0=t0, sample_rate=sample_rate
+            )
+
+    return ts_dict
 
 
 def write_timeseries(
@@ -134,23 +135,25 @@ def write_timeseries(
     # and ensure they are all of the same length
     lengths = [
         len(dataset) / sample_rate
-        for dataset, sample_rate in zip(channels.values, sample_rate)
+        for dataset, sample_rate in zip(channels.values(), sample_rate)
     ]
 
     if len(set(lengths)) != 1:
         raise ValueError("Duration of datasets must all be equal")
 
     length = lengths[0]
+    length = int(length) if int(length) == length else length
+
     # format the filename and write the data to an archive
     fname = write_dir / f"{prefix}-{t0}-{length}.hdf5"
 
     with h5py.File(fname, "w") as f:
 
-        for i, key, value in enumerate(channels.items()):
+        for i, (key, value) in enumerate(channels.items()):
 
             f.attrs["t0"] = t0
 
-            dset = f.create_datset(key, data=value, compression="gzip")
+            dset = f.create_dataset(key, data=value, compression="gzip")
             dset.attrs["sample_rate"] = sample_rate[i]
 
     return fname
