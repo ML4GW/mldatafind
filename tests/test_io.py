@@ -40,14 +40,12 @@ def n_channels():
 def channels(duration, n_channels, sample_rate):
     data = {}
     for i in range(n_channels):
-        data[str(i)] = np.random.normal(size=(duration * int(sample_rate)))
+        data[str(i)] = np.arange(0, (duration * int(sample_rate)), 1) * i
     return data
 
 
 def test_write_timeseries(write_dir, t0, sample_rate, channels, duration):
 
-    # test basic usecase:
-    # one sample rate for all channels
     path = io.write_timeseries(write_dir, t0, sample_rate, "test", **channels)
 
     assert path.exists()
@@ -55,56 +53,39 @@ def test_write_timeseries(write_dir, t0, sample_rate, channels, duration):
 
     with h5py.File(path, "r") as f:
         assert t0 == f.attrs["t0"]
-        for key, value in channels.items():
-            assert f[key].attrs["sample_rate"] == sample_rate
-            assert (f[key][:] == value).all()
+        assert sample_rate == f.attrs["sample_rate"]
+        assert duration == f.attrs["length"]
 
-    # test that value error thrown
-    # if list of sample rates is passed and
-    # length of list is not
-    # equal to length of channels
+        for channel, dataset in channels.items():
+            data = f[channel][:]
+            assert (data == dataset).all()
 
-    with pytest.raises(ValueError) as err:
-        io.write_timeseries(
+    # test that value error raised
+    # when all channels aren't the same length
+    with pytest.raises(ValueError):
+        path = io.write_timeseries(
             write_dir,
             t0,
-            [sample_rate] * (len(channels) - 1),
+            sample_rate,
             "test",
             **channels,
+            bad_channel=np.array([0, 1, 2]),
         )
 
-        assert err.starts_with("Only")
 
-    # test that value error thrown
-    # if duration of each channel
-    # is not the same
+def test_read_timeseries(duration, sample_rate, channels):
+    t0 = 1234567890
 
-    with pytest.raises(ValueError) as err:
-        # same number of samples
-        # but different sample rates
-        # will lead to different durations
-        sample_rates = (
-            [sample_rate] + (len(channels) - 1) * [sample_rate / 2],
-        )
-        io.write_timeseries(write_dir, t0, "test", sample_rates, **channels)
-        assert err.starts_with("Duration")
+    path = f"prefix-{t0}-{duration}.h5"
+    with h5py.File(path, "w") as f:
+        for channel, dataset in channels.items():
+            dataset = f.create_dataset(channel, data=dataset)
+        f.attrs["sample_rate"] = sample_rate
+        f.attrs["t0"] = t0
+        f.attrs["length"] = duration
 
-    # test that different length
-    # channels with same duration
-    # (e.g. from different sampling rates)
-    # succeeds
+    channel_names = list(channels.keys())
+    data, times = io.read_timeseries(path, *channel_names)
 
-    duration = 1
-    sample_rates = [2048, 1024]
-    channels = dict(nn=np.arange(0, 2048, 1), integrated=np.arange(0, 1024, 1))
-
-    path = io.write_timeseries(write_dir, t0, sample_rates, "test", **channels)
-
-    assert path.exists()
-    assert path == write_dir / f"test-{t0}-{duration}.hdf5"
-
-    with h5py.File(path, "r") as f:
-        assert t0 == f.attrs["t0"]
-        for i, (key, value) in enumerate(channels.items()):
-            assert f[key].attrs["sample_rate"] == sample_rates[i]
-            assert (f[key][:] == value).all()
+    for i, (channel, dataset) in enumerate(data.items()):
+        assert (dataset == channels[channel]).all()

@@ -27,8 +27,15 @@ def _calc_memory(
     return num_bytes
 
 
-def fetch(channels: List[str], t0: float, tf: float, nproc: int = 4):
+def fetch(
+    channels: List[str],
+    t0: float,
+    tf: float,
+    sample_rate: float,
+    nproc: int = 4,
+):
     ts_dict = TimeSeriesDict.get(channels, t0, tf, nproc=nproc)
+    ts_dict = ts_dict.resample(sample_rate)
     return ts_dict
 
 
@@ -42,21 +49,25 @@ def read(
     # find and sort all files
     # that match file name convention
     matches = filter_and_sort_files(data_dir, return_matches=True)
-    paths = [data_dir / i.string for i in matches]
+    paths = np.array([data_dir / i.string for i in matches])
 
-    # downselet to paths that contain requested data
-    starts = np.array([match.group("t0") for match in matches])
-    stops = np.array([match.group("length") for match in matches]) + starts
+    # downselect to paths that contain requested data
+    starts = np.array([float(match.group("t0")) for match in matches])
+    stops = (
+        np.array([float(match.group("length")) for match in matches]) + starts
+    )
 
-    mask = starts < tf & stops > t0
+    mask = starts < tf
+    mask &= stops > t0
+
     paths = paths[mask]
 
     outputs = defaultdict(lambda: np.array([]))
-    times = np.array([])
-    for path in paths:
-        datasets, t = read_timeseries(path, channels)
+    times = []
 
-        for channel, dataset in zip(channels, datasets):
+    for path in paths:
+        datasets, t = read_timeseries(path, *channels)
+        for channel, dataset in datasets.items():
             dataset = np.append(outputs[channel], dataset)
             outputs[channel] = dataset
 
@@ -68,10 +79,10 @@ def read(
                     f" data from {t0} to {tf}"
                 )
 
-        times.append(t)
+        times.extend(t)
 
     ts_dict = TimeSeriesDict()
-    for channel in channel:
+    for channel in channels:
         ts_dict[channel] = TimeSeries(outputs[channel], times=times)
 
     ts_dict = ts_dict.crop(t0, tf)

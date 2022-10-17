@@ -1,10 +1,9 @@
 import re
 from pathlib import Path
-from typing import Iterable, List, Tuple, Union
+from typing import Dict, Iterable, List, Tuple, Union
 
 import h5py
 import numpy as np
-from gwpy.timeseries import TimeSeries, TimeSeriesDict
 
 PATH_LIKE = Union[str, Path]
 MAYBE_PATHS = Union[PATH_LIKE, Iterable[PATH_LIKE]]
@@ -67,9 +66,18 @@ def filter_and_sort_files(
     return [t[return_idx] for t in sorted(tups)]
 
 
-def read_timeseries(path: Path, *channels: str) -> Tuple["np.ndarray", ...]:
+# TODO: Currently both read and write
+# assume all channels have same sample rate.
+# Is there a use case
+# where different channels will have
+# different sampling rates?
+
+
+def read_timeseries(
+    path: Path, *channels: str
+) -> Tuple[Dict[str, np.ndarray], np.ndarray]:
     """
-    Read multiple channel timeseries from an h5 file
+    Read multiple channel timeseries from an h5 file.
 
     Args:
         path: path to h5 file to read
@@ -78,33 +86,34 @@ def read_timeseries(path: Path, *channels: str) -> Tuple["np.ndarray", ...]:
     Returns TimeSeriesDict
     """
 
-    ts_dict = TimeSeriesDict()
-
+    ts = dict()
     with h5py.File(path, "r") as f:
         t0 = f.attrs["t0"]
+        length = f.attrs["length"]
+        sample_rate = f.attrs["sample_rate"]
 
         for channel in channels:
+
             try:
-                dataset = f[channel]
+                dataset = f[channel][:]
             except KeyError:
                 raise ValueError(
                     "Data file {} doesn't contain channel {}".format(
-                        path.fname, channel
+                        path.name, channel
                     )
                 )
-            sample_rate = dataset.attrs["sample_rate"]
 
-            ts_dict[channel] = TimeSeries(
-                dataset[:], t0=t0, sample_rate=sample_rate
-            )
+            ts[channel] = dataset
 
-    return ts_dict
+        times = np.arange(t0, t0 + length, 1 / sample_rate)
+
+    return ts, times
 
 
 def write_timeseries(
     write_dir: Path,
     t0: float,
-    sample_rate: Union[float, List[float]],
+    sample_rate: float,
     prefix: str,
     **channels,
 ):
@@ -114,46 +123,32 @@ def write_timeseries(
     Args:
         write_dir: Output directory
         t0: Starting gpstime of all channels
-        sample_rate: Sample rates for each channel
+        sample_rate: Sample rate
         prefix: Prefix label for file name
 
     Returns path to output file
     """
 
-    # if float is passed,
-    # use same sample_rate for each channel
-    if isinstance(sample_rate, float):
-        sample_rate = [sample_rate] * len(channels)
+    # ensure all channels have same length
+    n_samples = [len(channel) for channel in channels.values()]
 
-    if len(sample_rate) != len(channels):
-        raise ValueError(
-            f"Only {len(sample_rate)} sample rates "
-            f"provided for {len(channels)} channels"
-        )
-
-    # infer duration of each channel
-    # and ensure they are all of the same length
-    lengths = [
-        len(dataset) / sample_rate
-        for dataset, sample_rate in zip(channels.values(), sample_rate)
-    ]
-
-    if len(set(lengths)) != 1:
-        raise ValueError("Duration of datasets must all be equal")
-
-    length = lengths[0]
+    if len(set(n_samples)) != 1:
+        raise ValueError("Channels must all be of the same length")
+    n_samples = n_samples[0]
+    length = n_samples / sample_rate
     length = int(length) if int(length) == length else length
 
     # format the filename and write the data to an archive
     fname = write_dir / f"{prefix}-{t0}-{length}.hdf5"
 
     with h5py.File(fname, "w") as f:
+        # attributes all channels share
+        f.attrs["t0"] = t0
+        f.attrs["length"] = length
+        f.attrs["sample_rate"] = sample_rate
 
-        for i, (key, value) in enumerate(channels.items()):
+        for key, value in channels.items():
 
-            f.attrs["t0"] = t0
-
-            dset = f.create_dataset(key, data=value, compression="gzip")
-            dset.attrs["sample_rate"] = sample_rate[i]
+            f.create_dataset(key, data=value, compression="gzip")
 
     return fname
