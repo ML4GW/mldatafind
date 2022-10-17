@@ -114,3 +114,19 @@ def test_read(
     with pytest.raises(ValueError) as err:
         ts_dict = find.read(write_dir, channel_names, t0 + 800, t0 + 990)
         assert "contigous" in err
+
+
+def test_data_generator(sample_rate):
+
+    segments = [[0, 2048], [4000, 8000]]
+    channels = ["H1:Strain", "L1:Strain"]
+
+    with patch("gwpy.timeseries.TimeSeriesDict.get"):
+        iterator = find._data_generator(segments, channels, find.fetch, 1)
+
+    expected_iterations = len(segments)
+    for i in range(expected_iterations):
+        next(iterator)
+
+    with pytest.raises(StopIteration):
+        next(iterator)

@@ -14,6 +14,13 @@ jobs:
       matrix:
         python-version: ['3.8', '3.9', '3.10']
         poetry-version: ['1.2.0a2', '1.2.0b2']
+    container:
+      image: ghcr.io/ml4gw/pinto:main
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.github_token }}
+      volumes:
+        - ${{ github.workspace }}:/github/workspace 
     steps:
     - uses: actions/checkout@v2
 
@@ -37,4 +44,4 @@ jobs:
     # run the library's tests
     -
       name: run tests
-      run: tox
+      run: pinto run tox

@@ -11,7 +11,7 @@ from gwpy.timeseries import TimeSeries, TimeSeriesDict
 from mldatafind.io import filter_and_sort_files, read_timeseries
 from mldatafind.parallelize import AsyncExecutor
 
-MEMORY_LIMIT = 0  # ? in bytes
+MEMORY_LIMIT = 1e10  # ? in bytes
 BITS_PER_BYTE = 8
 
 
@@ -32,7 +32,7 @@ def fetch(
     t0: float,
     tf: float,
     sample_rate: float,
-    nproc: int = 4,
+    nproc: int = 1,
 ):
     ts_dict = TimeSeriesDict.get(channels, t0, tf, nproc=nproc)
     ts_dict = ts_dict.resample(sample_rate)
@@ -145,7 +145,7 @@ def _data_generator(
         while segments or futures:
 
             # submit jobs until memory limit is reached
-            while current_memory < memory_limit:
+            while current_memory < memory_limit and segments:
                 segment = segments.pop()
                 duration = segment[1] - segment[0]
 
@@ -169,6 +169,7 @@ def find_data(
     t0: float,
     tf: float,
     channels: Iterable[str],
+    sample_rate: float,
     min_duration: float = 0.0,
     segment_names: Optional[Iterable[str]] = None,
     data_dir: Optional[Path] = None,
