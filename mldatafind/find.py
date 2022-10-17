@@ -10,16 +10,14 @@ from gwpy.segments import DataQualityDict, Segment, SegmentList
 from gwpy.timeseries import TimeSeries, TimeSeriesDict
 from parallelize import AsyncExecutor
 
-MEMORY_LIMIT = 1e8
-
-# is this the right spot for these
+MEMORY_LIMIT = 0  # ? in bytes
 BITS_PER_BYTE = 8
 
 
 def _calc_memory(
     n_channels: int,
     duration: float,
-    precision: int,
+    precision: int = 64,
     sample_rate: float = 16384.0,
 ):
 
@@ -45,6 +43,7 @@ def read(
     matches = filter_and_sort_files(data_dir, return_matches=True)
     paths = [data_dir / i.string for i in matches]
 
+    # downselet to paths that contain requested data
     starts = np.array([match.group("t0") for match in matches])
     stops = np.array([match.group("length") for match in matches]) + starts
 
@@ -74,7 +73,44 @@ def read(
     for channel in channel:
         ts_dict[channel] = TimeSeries(outputs[channel], times=times)
 
+    ts_dict = ts_dict.crop(t0, tf)
     return ts_dict
+
+
+def query_segments(
+    segment_names: Iterable[str], t0: float, tf: float, min_duration: float = 0
+) -> SegmentList:
+    """
+    Query segments from dqsegdb and return the intersection.
+    Only return segments of length greater than `min_duration`
+
+    Args:
+        segment_names: Iterable of segment names to query
+        t0: Start time of segments
+        tf: Stop time of segments
+        min_duration: Minimum length of intersected segments
+
+    Returns SegmentList
+    """
+
+    segments = DataQualityDict.query_dqsegdb(
+        segment_names,
+        t0,
+        tf,
+    )
+
+    segments = segments.intersection().active.copy()
+
+    # if min duration is passed, restrict to those segments
+    mask = np.ones(len(segments), dtype=bool)
+
+    if min_duration is not None:
+        durations = [float(seg[1] - seg[0]) for seg in segments]
+        mask &= durations > min_duration
+
+    segments = segments[mask]
+
+    return segments
 
 
 def _data_generator(
@@ -82,7 +118,7 @@ def _data_generator(
     channels: Iterable[str],
     method: Callable,
     n_workers: int,
-):
+) -> Iterator[TimeSeriesDict]:
 
     memory_limit = MEMORY_LIMIT
     executor = AsyncExecutor(n_workers, thread=True)
@@ -162,33 +198,14 @@ def find_data(
     # if segment names are passed
     # query all those segments
     if segment_names is not None:
-        segments = DataQualityDict.query_dqsegdb(
-            segment_names,
-            t0,
-            tf,
-        )
-        # intersect segments
-        intersection = segments.intersection().active.copy()
-
-        # if min duration is passed, restrict to those segments
-        mask = np.ones(len(intersection), dtype=bool)
-
-        if min_duration is not None:
-            durations = [float(seg[1] - seg[0]) for seg in intersection]
-            mask &= durations > min_duration
-
-        intersection = intersection[mask]
-
+        segments = query_segments(segment_names, t0, tf, min_duration)
     else:
-        intersection = SegmentList(Segment([t0, tf]))
+        segments = SegmentList(Segment([t0, tf]))
 
-    if data_dir is not None:
-        # if no data dir has
-        # been passed query via gwpy
-        method = fetch
-    else:
-        # otherwise load from
-        # directory
-        method = partial(read, data_dir)
+    # if no data dir has
+    # been passed query via gwpy,
+    # otherwise load from
+    # directory
+    method = fetch if data_dir is not None else partial(read, data_dir)
 
-    _data_generator(intersection, channels, method, n_workers)
+    _data_generator(segments, channels, method, n_workers)

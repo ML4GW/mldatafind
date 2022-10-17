@@ -98,3 +98,59 @@ def read_timeseries(path: Path, *channels: str) -> Tuple["np.ndarray", ...]:
         duration = outputs.shape[-1] / sample_rate
         times = np.arange(0, t0 + duration, 1 / sample_rate)
     return tuple(outputs) + (times,)
+
+
+def write_timeseries(
+    write_dir: Path,
+    t0: float,
+    sample_rate: Union[float, List[float]],
+    prefix: str,
+    **channels,
+):
+    """
+    Write multi-channel timeseries to h5 format
+
+    Args:
+        write_dir: Output directory
+        t0: Starting gpstime of all channels
+        sample_rate: Sample rates for each channel
+        prefix: Prefix label for file name
+
+    Returns path to output file
+    """
+
+    # if float is passed,
+    # use same sample_rate for each channel
+    if isinstance(sample_rate, float):
+        sample_rate = [sample_rate] * len(channels)
+
+    if len(sample_rate) != len(channels):
+        raise ValueError(
+            f"Only {len(sample_rate)} sample rates "
+            f"provided for {len(channels)} channels"
+        )
+
+    # infer duration of each channel
+    # and ensure they are all of the same length
+    lengths = [
+        len(dataset) / sample_rate
+        for dataset, sample_rate in zip(channels.values, sample_rate)
+    ]
+
+    if len(set(lengths)) != 1:
+        raise ValueError("Duration of datasets must all be equal")
+
+    length = lengths[0]
+    # format the filename and write the data to an archive
+    fname = write_dir / f"{prefix}-{t0}-{length}.hdf5"
+
+    with h5py.File(fname, "w") as f:
+
+        for i, key, value in enumerate(channels.items()):
+
+            f.attrs["t0"] = t0
+
+            dset = f.create_datset(key, data=value, compression="gzip")
+            dset.attrs["sample_rate"] = sample_rate[i]
+
+    return fname
