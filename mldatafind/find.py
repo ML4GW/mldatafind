@@ -30,9 +30,9 @@ def _calc_memory(
 
 
 def _data_generator(
+    method: Callable,
     segments: List,
     channels: Iterable[str],
-    method: Callable,
     n_workers: int,
     thread: bool,
     **method_kwargs,
@@ -57,6 +57,7 @@ def _data_generator(
             # submit jobs until memory limit is reached
             while current_memory < memory_limit and segments:
                 segment = segments.pop()
+
                 duration = segment[1] - segment[0]
 
                 # TODO: memory depends on sample rate;
@@ -73,8 +74,9 @@ def _data_generator(
             # memory limit is saturated:
             # wait until any one future completes and yield
             ready, futures = wait(futures, return_when=FIRST_COMPLETED)
-
-            yield from ready
+            print(futures, segments)
+            for future in ready:
+                yield future.result()
 
 
 def find_data(
@@ -143,5 +145,5 @@ def find_data(
         else partial(read_timeseries, data_dir)
     )
     _data_generator(
-        segments, channels, method, n_workers, thread, array_like=array_like
+        method, segments, channels, n_workers, thread, array_like=array_like
     )

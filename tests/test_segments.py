@@ -8,7 +8,7 @@ from gwpy.segments import (
     SegmentList,
 )
 
-from mldatafind import io
+from mldatafind.segments import query_segments
 
 
 def test_query_segments():
@@ -28,9 +28,10 @@ def test_query_segments():
         segments[f"{ifo}:ANALYSIS"] = DataQualityFlag(active=segment_list)
 
     with patch(
-        "mldatafind.io.DataQualityDict.query_dqsegdb", return_value=segments
+        "mldatafind.segments.DataQualityDict.query_dqsegdb",
+        return_value=segments,
     ):
-        intersection = io.query_segments(
+        intersection = query_segments(
             ["H1:ANALYSIS", "L1:ANALYSIS"],
             -np.inf,
             np.inf,
@@ -40,7 +41,7 @@ def test_query_segments():
 
         # now test with min duration argument
         # only first segment should be returned
-        intersection = io.query_segments(
+        intersection = query_segments(
             ["H1:ANALYSIS", "L1:ANALYSIS"],
             -np.inf,
             np.inf,
@@ -58,9 +59,10 @@ def test_query_segments():
         )
 
     with patch(
-        "mldatafind.io.DataQualityDict.query_dqsegdb", return_value=segments
+        "mldatafind.segments.DataQualityDict.query_dqsegdb",
+        return_value=segments,
     ):
-        intersection = io.query_segments(
+        intersection = query_segments(
             ["H1:ANALYSIS", "L1:ANALYSIS"],
             -np.inf,
             np.inf,

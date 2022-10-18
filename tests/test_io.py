@@ -52,6 +52,9 @@ def test_validate_ts_dict(sample_rate, t0):
     with pytest.raises(ValueError):
         io._validate_ts_dict(ts_dict)
 
+    data = np.arange(0, 1024 * sample_rate)
+    ts_dict["test2"] = TimeSeries(data, dt=1 / (sample_rate), t0=t0)
+
 
 def test_filter_and_sort_files(
     typed_file_names,
@@ -198,3 +201,5 @@ def test_read_timeseries(
         times == np.arange(t0, t0 + file_length - 1, 1 / sample_rate)
     ).all()
     assert data.shape == (len(channel_names), sample_rate * (file_length - 1))
+
+    # TODO: test when array_like is False
