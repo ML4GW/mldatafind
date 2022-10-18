@@ -1,14 +1,8 @@
 from pathlib import Path
-from unittest.mock import patch
 
 import numpy as np
-from gwpy.segments import (
-    DataQualityDict,
-    DataQualityFlag,
-    Segment,
-    SegmentList,
-)
-from gwpy.timeseries import TimeSeriesDict
+import pytest
+from gwpy.timeseries import TimeSeries, TimeSeriesDict
 
 from mldatafind import io
 
@@ -33,6 +27,30 @@ def check_file_contents(fname, sample_rate, t0, file_length, **datasets):
     assert (times == np.arange(t0, t0 + file_length, 1 / sample_rate)).all()
     for i, (_, value) in enumerate(datasets.items()):
         assert (data[i] == value).all()
+
+
+def test_validate_ts_dict(sample_rate, t0):
+    ts_dict = TimeSeriesDict()
+    data = np.arange(0, 1024 * sample_rate)
+    ts_dict["test"] = TimeSeries(data, dt=1 / sample_rate, t0=t0)
+
+    io._validate_ts_dict(ts_dict)
+
+    ts_dict["test2"] = TimeSeries(data, dt=1 / sample_rate, t0=t0 + 1)
+
+    with pytest.raises(ValueError):
+        io._validate_ts_dict(ts_dict)
+
+    ts_dict["test2"] = TimeSeries(data, dt=1 / (sample_rate + 1), t0=t0)
+
+    with pytest.raises(ValueError):
+        io._validate_ts_dict(ts_dict)
+
+    data = np.arange(0, 1025 * sample_rate)
+    ts_dict["test2"] = TimeSeries(data, dt=1 / (sample_rate), t0=t0)
+
+    with pytest.raises(ValueError):
+        io._validate_ts_dict(ts_dict)
 
 
 def test_filter_and_sort_files(
@@ -180,60 +198,3 @@ def test_read_timeseries(
         times == np.arange(t0, t0 + file_length - 1, 1 / sample_rate)
     ).all()
     assert data.shape == (len(channel_names), sample_rate * (file_length - 1))
-
-
-def test_query_segments():
-
-    # test simple example
-    # where segments for both ifos
-    # completely overlap
-    segment_list = SegmentList(
-        [
-            Segment([0, 200]),
-            Segment([1000, 1100]),
-        ]
-    )
-
-    segments = DataQualityDict()
-    for ifo in ["H1", "L1"]:
-        segments[f"{ifo}:ANALYSIS"] = DataQualityFlag(active=segment_list)
-
-    with patch(
-        "mldatafind.io.DataQualityDict.query_dqsegdb", return_value=segments
-    ):
-        intersection = io.query_segments(
-            ["H1:ANALYSIS", "L1:ANALYSIS"],
-            -np.inf,
-            np.inf,
-        )
-
-        assert (intersection == segment_list).all()
-
-        # now test with min duration argument
-        # only first segment should be returned
-        intersection = io.query_segments(
-            ["H1:ANALYSIS", "L1:ANALYSIS"],
-            -np.inf,
-            np.inf,
-            min_duration=110,
-        )
-
-        assert (intersection == [[0, 200]]).all()
-
-    # now shift segments so that
-    # there is no overlap
-    segments = DataQualityDict()
-    for i, ifo in enumerate(["H1", "L1"]):
-        segments[f"{ifo}:ANALYSIS"] = DataQualityFlag(
-            active=segment_list.shift(i * 300)
-        )
-
-    with patch(
-        "mldatafind.io.DataQualityDict.query_dqsegdb", return_value=segments
-    ):
-        intersection = io.query_segments(
-            ["H1:ANALYSIS", "L1:ANALYSIS"],
-            -np.inf,
-            np.inf,
-        )
-        assert len(intersection) == 0

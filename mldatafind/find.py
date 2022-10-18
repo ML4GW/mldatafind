@@ -10,7 +10,8 @@ from typing import Callable, Iterable, Iterator, List, Optional
 
 from gwpy.segments import Segment, SegmentList
 
-from mldatafind.io import fetch_timeseries, query_segments, read_timeseries
+from mldatafind.io import fetch_timeseries, read_timeseries
+from mldatafind.segments import query_segments
 
 MEMORY_LIMIT = 1e10  # ? in bytes
 BITS_PER_BYTE = 8

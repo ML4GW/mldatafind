@@ -3,7 +3,6 @@ from pathlib import Path
 from typing import Iterable, List, Optional, Union
 
 import numpy as np
-from gwpy.segments import DataQualityDict, SegmentList
 from gwpy.timeseries import TimeSeries, TimeSeriesDict
 
 PATH_LIKE = Union[str, Path]
@@ -116,12 +115,51 @@ def filter_and_sort_files(
     return [t[return_idx] for t in sorted(tups)]
 
 
+def _validate_ts_dict(ts_dict: TimeSeriesDict):
+    """Ensures all channels in TimeSeriesDict
+    have the same t0, sample_rate, and length
+    """
+    timeseries_params = [
+        (ts.t0.value, ts.dt, len(ts)) for ts in ts_dict.values()
+    ]
+    unique_ts_params = set(timeseries_params)
+    if len(unique_ts_params) != 1:
+        raise ValueError(
+            "Channels in TimeSeriesDict must have the same t0, sample rate,"
+            f"and length. Found {len(unique_ts_params)} "
+            f"different combinations: {unique_ts_params}"
+        )
+
+
+def ts_dict_to_array(ts_dict: TimeSeriesDict):
+    """Convert a TimeSeriesDict to an array.
+    All channels in TimeSeriesDict are expected
+    to have the same sample rate, t0, and length
+
+
+    Args:
+        ts_dict: TimeSeriesDict
+
+    returns array of channels, array of times
+    """
+
+    _validate_ts_dict(ts_dict)
+
+    # get one ts so we can extract the times
+    ts = ts_dict[list(ts_dict.keys())[0]]
+    times = ts.times.value
+
+    data = np.stack([ts.value for ts in ts_dict.values()])
+
+    return data, times
+
+
 def read_timeseries(
     path: MAYBE_PATHS,
     channels: List[str],
     t0: Optional[float] = None,
     tf: Optional[float] = None,
-    array_like=True,
+    array_like: bool = True,
 ) -> np.ndarray:
     """
     Thin wrapper around TimeSeriesDict.read
@@ -147,15 +185,21 @@ def read_timeseries(
     # if any channel doesnt contain
     # data from t0 to tf, or if gaps exist
     ts_dict = TimeSeriesDict.read(paths, channels, start=t0, end=tf)
+
     if not array_like:
+        _validate_ts_dict(ts_dict)
         return ts_dict
 
-    data, times = _ts_dict_to_array(ts_dict)
+    data, times = ts_dict_to_array(ts_dict)
     return data, times
 
 
 def fetch_timeseries(
-    t0: float, tf: float, array_like: bool = True, nproc: int = 1, *channels
+    channels: List[str],
+    t0: float,
+    tf: float,
+    array_like: bool = True,
+    nproc: int = 1,
 ):
     """
     Thin wrapper around TimeSeriesDict.get
@@ -165,29 +209,10 @@ def fetch_timeseries(
     """
     ts_dict = TimeSeriesDict.get(channels, start=t0, stop=tf, nproc=nproc)
     if not array_like:
+        _validate_ts_dict(ts_dict)
         return ts_dict
 
-    data, times = _ts_dict_to_array(ts_dict)
-    return data, times
-
-
-def _ts_dict_to_array(ts_dict: TimeSeriesDict):
-    """Helper function for converting ts_dict
-    to array formats, and performing data consistency
-    checks
-    """
-
-    # get a ts so we can find the times
-    ts = ts_dict[list(ts_dict.keys())[0]]
-    times = ts.times.value
-
-    data = np.stack([ts.value for ts in ts_dict.values()])
-
-    if len(times) != data.shape[-1]:
-        raise ValueError(
-            f"Data dimension {data.shape[-1]} and time dimension {len(times)}"
-            "are not the same. Can't convert ts_dict to array"
-        )
+    data, times = ts_dict_to_array(ts_dict)
     return data, times
 
 
@@ -243,39 +268,3 @@ def write_timeseries(
     ts_dict.write(fname)
 
     return fname
-
-
-def query_segments(
-    segment_names: Iterable[str], t0: float, tf: float, min_duration: float = 0
-) -> SegmentList:
-    """
-    Query segments from dqsegdb and return the intersection.
-    Only return segments of length greater than `min_duration`
-
-    Args:
-        segment_names: Iterable of segment names to query
-        t0: Start time of segments
-        tf: Stop time of segments
-        min_duration: Minimum length of intersected segments
-
-    Returns SegmentList
-    """
-
-    segments = DataQualityDict.query_dqsegdb(
-        segment_names,
-        t0,
-        tf,
-    )
-
-    segments = np.array(segments.intersection().active.copy())
-
-    # if min duration is passed, restrict to those segments
-    mask = np.ones(len(segments), dtype=bool)
-
-    if min_duration is not None:
-        durations = np.array([float(seg[1] - seg[0]) for seg in segments])
-        mask &= durations > min_duration
-
-    segments = segments[mask]
-
-    return segments
