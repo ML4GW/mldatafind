@@ -22,3 +22,10 @@ You can then update your lockfile/environment via
 ```
 poetry update
 ```
+
+Alternatively, if you have the environment management tool pinto installed, you can run
+
+```
+pinto build
+```
+in the project home directory. This will install both the conda and poetry dependencies in one swoop!
