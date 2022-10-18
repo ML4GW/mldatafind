@@ -55,9 +55,9 @@ def file_names(
         ts_dict = TimeSeriesDict()
         start = t0 + i * file_length
         data = np.arange(i * num_samples, (i + 1) * num_samples)
-        for i, channel_name in enumerate(channel_names):
+        for j, channel_name in enumerate(channel_names):
             ts_dict[channel_name] = TimeSeries(
-                data * (i + 1), dt=1 / sample_rate, t0=start
+                data * (j + 1), dt=1 / sample_rate, t0=start
             )
 
         fname = write_dir / f"{prefix}-{int(start)}-{int(file_length)}.h5"
