@@ -6,6 +6,11 @@ import pytest
 from gwpy.timeseries import TimeSeries, TimeSeriesDict
 
 
+@pytest.fixture(params=["hdf5"])
+def file_format(request):
+    return request.param
+
+
 @pytest.fixture(scope="function")
 def write_dir():
     tmpdir = Path(__file__).resolve().parent / "data"

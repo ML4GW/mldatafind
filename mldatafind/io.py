@@ -228,7 +228,9 @@ def write_timeseries(
 
     # infer duration in time of datasets
     length = n_samples / sample_rate
+
     length = int(length) if int(length) == length else length
+    t0 = int(t0) if int(t0) == t0 else t0
 
     # package data into TimeSeriesDict
     ts_dict = TimeSeriesDict()
