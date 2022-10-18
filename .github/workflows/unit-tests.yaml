@@ -1,0 +1,27 @@
+name: unit-tests
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    container:
+      image: ghcr.io/ml4gw/pinto:main
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.github_token }}
+      volumes:
+        - ${{ github.workspace }}:/github/workspace 
+    steps:
+    - uses: actions/checkout@v2
+
+    
+    # run the library's tests
+    -
+      name: run tests
+      run: pinto run pytest
