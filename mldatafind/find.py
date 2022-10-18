@@ -1,4 +1,3 @@
-from collections import defaultdict
 from concurrent.futures import (
     FIRST_COMPLETED,
     ProcessPoolExecutor,
@@ -9,11 +8,9 @@ from functools import partial
 from pathlib import Path
 from typing import Callable, Iterable, Iterator, List, Optional
 
-import numpy as np
-from gwpy.segments import DataQualityDict, Segment, SegmentList
-from gwpy.timeseries import TimeSeries, TimeSeriesDict
+from gwpy.segments import Segment, SegmentList
 
-from mldatafind.io import filter_and_sort_files, read_timeseries
+from mldatafind.io import fetch_timeseries, query_segments, read_timeseries
 
 MEMORY_LIMIT = 1e10  # ? in bytes
 BITS_PER_BYTE = 8
@@ -31,111 +28,14 @@ def _calc_memory(
     return num_bytes
 
 
-def fetch(
-    channels: List[str],
-    t0: float,
-    tf: float,
-    sample_rate: float,
-    nproc: int = 1,
-):
-    ts_dict = TimeSeriesDict.get(channels, t0, tf, nproc=nproc)
-    ts_dict = ts_dict.resample(sample_rate)
-    return ts_dict
-
-
-def read(
-    data_dir: Path,
-    channels: Iterable[str],
-    t0: float,
-    tf: float,
-):
-
-    # find and sort all files
-    # that match file name convention
-    matches = filter_and_sort_files(data_dir, return_matches=True)
-    paths = np.array([data_dir / i.string for i in matches])
-
-    # downselect to paths that contain requested data
-    starts = np.array([float(match.group("t0")) for match in matches])
-    stops = (
-        np.array([float(match.group("length")) for match in matches]) + starts
-    )
-
-    mask = starts < tf
-    mask &= stops > t0
-
-    paths = paths[mask]
-
-    outputs = defaultdict(lambda: np.array([]))
-    times = []
-
-    for path in paths:
-        datasets, t = read_timeseries(path, *channels)
-        for channel, dataset in datasets.items():
-            dataset = np.append(outputs[channel], dataset)
-            outputs[channel] = dataset
-
-        if times:
-            # check for contiguousness
-            if t[0] != times[-1]:
-                raise ValueError(
-                    f"{data_dir} does not contain a contiguous stretch of"
-                    f" data from {t0} to {tf}"
-                )
-
-        times.extend(t)
-
-    ts_dict = TimeSeriesDict()
-    for channel in channels:
-        ts_dict[channel] = TimeSeries(outputs[channel], times=times)
-
-    ts_dict = ts_dict.crop(t0, tf)
-    return ts_dict
-
-
-def query_segments(
-    segment_names: Iterable[str], t0: float, tf: float, min_duration: float = 0
-) -> SegmentList:
-    """
-    Query segments from dqsegdb and return the intersection.
-    Only return segments of length greater than `min_duration`
-
-    Args:
-        segment_names: Iterable of segment names to query
-        t0: Start time of segments
-        tf: Stop time of segments
-        min_duration: Minimum length of intersected segments
-
-    Returns SegmentList
-    """
-
-    segments = DataQualityDict.query_dqsegdb(
-        segment_names,
-        t0,
-        tf,
-    )
-
-    segments = np.array(segments.intersection().active.copy())
-
-    # if min duration is passed, restrict to those segments
-    mask = np.ones(len(segments), dtype=bool)
-
-    if min_duration is not None:
-        durations = np.array([float(seg[1] - seg[0]) for seg in segments])
-        mask &= durations > min_duration
-
-    segments = segments[mask]
-
-    return segments
-
-
 def _data_generator(
     segments: List,
     channels: Iterable[str],
     method: Callable,
     n_workers: int,
     thread: bool,
-) -> Iterator[TimeSeriesDict]:
+    **method_kwargs,
+) -> Iterator:
 
     memory_limit = MEMORY_LIMIT
 
@@ -163,7 +63,9 @@ def _data_generator(
                 # but unknown for auxiliary channels
                 segment_memory = _calc_memory(len(channels), duration)
 
-                future = exc.submit(method, channels, *segment)
+                future = exc.submit(
+                    method, channels, *segment, **method_kwargs
+                )
                 futures.append(future)
                 current_memory += segment_memory
 
@@ -182,9 +84,10 @@ def find_data(
     min_duration: float = 0.0,
     segment_names: Optional[Iterable[str]] = None,
     data_dir: Optional[Path] = None,
+    array_like: bool = False,
     n_workers: int = 4,
     thread: bool = True,
-) -> Iterator[TimeSeriesDict]:
+) -> Iterator:
 
     """
     Find gravitational wave data from `channels` over
@@ -233,6 +136,11 @@ def find_data(
     # been passed query via gwpy,
     # otherwise load from
     # directory
-    method = fetch if data_dir is not None else partial(read, data_dir)
-
-    _data_generator(segments, channels, method, n_workers, thread)
+    method = (
+        fetch_timeseries
+        if data_dir is not None
+        else partial(read_timeseries, data_dir)
+    )
+    _data_generator(
+        segments, channels, method, n_workers, thread, array_like=array_like
+    )

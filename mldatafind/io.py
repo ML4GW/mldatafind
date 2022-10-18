@@ -1,9 +1,10 @@
 import re
 from pathlib import Path
-from typing import Dict, Iterable, List, Tuple, Union
+from typing import Iterable, List, Optional, Union
 
-import h5py
 import numpy as np
+from gwpy.segments import DataQualityDict, SegmentList
+from gwpy.timeseries import TimeSeries, TimeSeriesDict
 
 PATH_LIKE = Union[str, Path]
 MAYBE_PATHS = Union[PATH_LIKE, Iterable[PATH_LIKE]]
@@ -20,25 +21,52 @@ fname_re = re.compile(
 
 
 def filter_and_sort_files(
-    fnames: MAYBE_PATHS, return_matches: bool = False
+    fnames: MAYBE_PATHS,
+    t0: Optional[float] = None,
+    tf: Optional[float] = None,
+    return_matches: bool = False,
 ) -> List[PATH_LIKE]:
     """Sort data files by their timestamps
 
     Given a list of filenames or a directory name containing
     data files, sort the files by their timestamps, assuming
     they follow the convention <prefix>-<timestamp>-<length>.hdf5
+
+    If `t0` is specified, only return files that contain data
+    with timestamps greater than `t0`. Additionally, if `tf` is specified
+    only return matches with timestamps less than `tf`. If both `t0` and `tf`
+    are specified, matches containing any data in the range `t0` to `tf` will
+    be returned.
+
+    Args:
+        fnames:
+            Path to directory containing files,
+            or iterable of paths to sort
+        t0:
+            return files that contain data greater than this gpstime
+        tf:
+            return files that contain data less than this gpstime
+        return_matches:
+            If true return the match objects, otherwise return file names
+
+    returns paths or match objects of sorted files
     """
 
     if isinstance(fnames, (Path, str)):
-        # if we passed a single string or path, assume that
-        # this refers to a directory containing files that
-        # we're meant to sort
         fname_path = Path(fnames)
         if not fname_path.is_dir():
-            raise ValueError(f"'{fnames}' is not a directory")
-
-        fnames = list(fname_path.iterdir())
-        fname_it = [f.name for f in fnames]
+            # if this is not a directory
+            # this is a single path to a file;
+            # add it to a list and move on
+            fnames = [fname_path]
+            fname_it = [fname_path.name]
+        else:
+            # if we passed a single string or path,
+            # that is a directory, asume this refers
+            # to directory containing files we're meant
+            # to sort
+            fnames = list(fname_path.iterdir())
+            fname_it = [f.name for f in fnames]
     else:
         # otherwise make sure the iterable contains either
         # _all_ Paths or _all_ strings. If all paths, normalize
@@ -55,10 +83,32 @@ def filter_and_sort_files(
         else:
             fname_it = [Path(f).name for f in fnames]
 
+    fnames = np.array(fnames)
+    matches = np.array(list(map(fname_re.search, fname_it)))
+
+    # downselect to paths that contain requested data
+    mask = np.ones(len(matches), dtype=bool)
+
+    if tf is not None:
+        mask &= np.array([float(match.group("t0")) < tf for match in matches])
+
+    if t0 is not None:
+        stops = np.array(
+            [
+                float(match.group("length")) + float(match.group("t0"))
+                for match in matches
+            ]
+        )
+        mask &= stops > t0
+
+    matches = matches[mask]
+    fnames = fnames[mask]
+
     # use the timestamps from all valid timestamped filenames
     # to sort the files as the first index in a tuple
-    matches = zip(map(fname_re.search, fname_it), fnames)
-    tups = [(m.group("t0"), f, m) for m, f in matches if m is not None]
+    tups = [
+        (m.group("t0"), f, m) for m, f in zip(matches, fnames) if m is not None
+    ]
 
     # if return_matches is True, return the match object,
     # otherwise just return the raw filename
@@ -66,89 +116,164 @@ def filter_and_sort_files(
     return [t[return_idx] for t in sorted(tups)]
 
 
-# TODO: Currently both read and write
-# assume all channels have same sample rate.
-# Is there a use case
-# where different channels will have
-# different sampling rates?
-
-
 def read_timeseries(
-    path: Path, *channels: str
-) -> Tuple[Dict[str, np.ndarray], np.ndarray]:
+    path: MAYBE_PATHS,
+    channels: List[str],
+    t0: Optional[float] = None,
+    tf: Optional[float] = None,
+    array_like=True,
+) -> np.ndarray:
     """
-    Read multiple channel timeseries from an h5 file.
+    Thin wrapper around TimeSeriesDict.read
+
+    Read multiple channel timeseries into an array or TimeSeriesDict.
 
     Args:
         path: path to h5 file to read
-        channels: channel name to read
-
-    Returns TimeSeriesDict
+        datasets: channel name to read
+        t0:
+        tf:
+        array_like:
+            If true return in array like format. Otherwise,
+            return gwpy.TimeSeriesDict
+    Returns array of datasets
     """
 
-    ts = dict()
-    with h5py.File(path, "r") as f:
-        t0 = f.attrs["t0"]
-        length = f.attrs["length"]
-        sample_rate = f.attrs["sample_rate"]
+    # downselect to files containing requested range
+    paths = filter_and_sort_files(path, t0, tf)
 
-        for channel in channels:
+    # this call will raise error if
+    # channel doesn't exist,
+    # if any channel doesnt contain
+    # data from t0 to tf, or if gaps exist
+    ts_dict = TimeSeriesDict.read(paths, channels, start=t0, end=tf)
+    if not array_like:
+        return ts_dict
 
-            try:
-                dataset = f[channel][:]
-            except KeyError:
-                raise ValueError(
-                    "Data file {} doesn't contain channel {}".format(
-                        path.name, channel
-                    )
-                )
-
-            ts[channel] = dataset
-
-        times = np.arange(t0, t0 + length, 1 / sample_rate)
-
-    return ts, times
+    data, times = _ts_dict_to_array(ts_dict)
+    return data, times
 
 
+def fetch_timeseries(
+    t0: float, tf: float, array_like: bool = True, nproc: int = 1, *channels
+):
+    """
+    Thin wrapper around TimeSeriesDict.get
+
+    Fetch multiple channel timeseries from nds2 and store in
+    array or TimeSeriesDict
+    """
+    ts_dict = TimeSeriesDict.get(channels, start=t0, stop=tf, nproc=nproc)
+    if not array_like:
+        return ts_dict
+
+    data, times = _ts_dict_to_array(ts_dict)
+    return data, times
+
+
+def _ts_dict_to_array(ts_dict: TimeSeriesDict):
+    """Helper function for converting ts_dict
+    to array formats, and performing data consistency
+    checks
+    """
+
+    # get a ts so we can find the times
+    ts = ts_dict[list(ts_dict.keys())[0]]
+    times = ts.times.value
+
+    data = np.stack([ts.value for ts in ts_dict.values()])
+
+    if len(times) != data.shape[-1]:
+        raise ValueError(
+            f"Data dimension {data.shape[-1]} and time dimension {len(times)}"
+            "are not the same. Can't convert ts_dict to array"
+        )
+    return data, times
+
+
+# TODO: Should we just pass times array
+# instead of t0 + sample_rate
+# for consistency with return value of read_timeseries ?
 def write_timeseries(
     write_dir: Path,
     t0: float,
     sample_rate: float,
     prefix: str,
-    **channels,
+    file_format: str = "hdf5",
+    **datasets,
 ):
     """
-    Write multi-channel timeseries to h5 format
+    Write multi-channel timeseries to specified format (either gwf or h5).
+
+    This function is a thin wrapper around gwpy.TimeSeriesDict.write
 
     Args:
-        write_dir: Output directory
-        t0: Starting gpstime of all channels
-        sample_rate: Sample rate
-        prefix: Prefix label for file name
+        write_dir: Directory to store files
+        t0: gps start time of datasets
+        sample_rate: sample rate shared by all datasets
+        prefix: prefix used for file name
 
     Returns path to output file
     """
 
+    if file_format not in ["hdf5", "gwf"]:
+        raise ValueError(f"Writing to {format} format is not supported")
     # ensure all channels have same length
-    n_samples = [len(channel) for channel in channels.values()]
+    n_samples = [len(dataset) for dataset in datasets.values()]
 
     if len(set(n_samples)) != 1:
         raise ValueError("Channels must all be of the same length")
+
     n_samples = n_samples[0]
+
+    # infer duration in time of datasets
     length = n_samples / sample_rate
     length = int(length) if int(length) == length else length
+
+    # package data into TimeSeriesDict
+    ts_dict = TimeSeriesDict()
+    for channel, dataset in datasets.items():
+        ts_dict[channel] = TimeSeries(dataset, dt=1 / sample_rate, t0=t0)
 
     # format the filename and write the data to an archive
     fname = write_dir / f"{prefix}-{t0}-{length}.hdf5"
 
-    with h5py.File(fname, "w") as f:
-        # attributes all channels share
-        f.attrs["t0"] = t0
-        f.attrs["length"] = length
-        f.attrs["sample_rate"] = sample_rate
-
-        for key, value in channels.items():
-
-            f.create_dataset(key, data=value, compression="gzip")
+    ts_dict.write(fname)
 
     return fname
+
+
+def query_segments(
+    segment_names: Iterable[str], t0: float, tf: float, min_duration: float = 0
+) -> SegmentList:
+    """
+    Query segments from dqsegdb and return the intersection.
+    Only return segments of length greater than `min_duration`
+
+    Args:
+        segment_names: Iterable of segment names to query
+        t0: Start time of segments
+        tf: Stop time of segments
+        min_duration: Minimum length of intersected segments
+
+    Returns SegmentList
+    """
+
+    segments = DataQualityDict.query_dqsegdb(
+        segment_names,
+        t0,
+        tf,
+    )
+
+    segments = np.array(segments.intersection().active.copy())
+
+    # if min duration is passed, restrict to those segments
+    mask = np.ones(len(segments), dtype=bool)
+
+    if min_duration is not None:
+        durations = np.array([float(seg[1] - seg[0]) for seg in segments])
+        mask &= durations > min_duration
+
+    segments = segments[mask]
+
+    return segments
