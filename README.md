@@ -9,21 +9,21 @@ Make sure the conda dependencies in the `environment.yaml` are installed, e.g. i
 conda env create -f environment.yaml
 ```
 
-Then, this project can be installed via Poetry by adding it as a local dependency
+Then, this project can be installed via [Poetry](https://python-poetry.org/) by adding it as a local dependency
 
-```yaml
+``` toml
 [tool.poetry.dependencies]
 python = "^3.8"  # python versions 3.8-3.10 are supported
 mldatafind = {path = "path/to/mldatafind", develop = true}
 ```
 
-You can then update your lockfile/environment via
+You can then update your lockfile/environment with
 
 ```
 poetry update
 ```
 
-Alternatively, if you have the environment management tool pinto installed, you can run
+Alternatively, if you have the [pinto](github.com/ML4GW/pinto/) environment management tool installed, you can run
 
 ```
 pinto build
