@@ -1,5 +1,10 @@
 from collections import defaultdict
-from concurrent.futures import FIRST_COMPLETED, wait
+from concurrent.futures import (
+    FIRST_COMPLETED,
+    ProcessPoolExecutor,
+    ThreadPoolExecutor,
+    wait,
+)
 from functools import partial
 from pathlib import Path
 from typing import Callable, Iterable, Iterator, List, Optional
@@ -9,7 +14,6 @@ from gwpy.segments import DataQualityDict, Segment, SegmentList
 from gwpy.timeseries import TimeSeries, TimeSeriesDict
 
 from mldatafind.io import filter_and_sort_files, read_timeseries
-from mldatafind.parallelize import AsyncExecutor
 
 MEMORY_LIMIT = 1e10  # ? in bytes
 BITS_PER_BYTE = 8
@@ -130,12 +134,17 @@ def _data_generator(
     channels: Iterable[str],
     method: Callable,
     n_workers: int,
+    thread: bool,
 ) -> Iterator[TimeSeriesDict]:
 
     memory_limit = MEMORY_LIMIT
-    executor = AsyncExecutor(n_workers, thread=True)
 
-    with executor:
+    if thread:
+        executor = ThreadPoolExecutor(n_workers)
+    else:
+        executor = ProcessPoolExecutor(n_workers)
+
+    with executor as exc:
         # keep track of current memory
         # and number of futures currently running
         current_memory = 0
@@ -154,7 +163,7 @@ def _data_generator(
                 # but unknown for auxiliary channels
                 segment_memory = _calc_memory(len(channels), duration)
 
-                future = executor.submit(method, channels, *segment)
+                future = exc.submit(method, channels, *segment)
                 futures.append(future)
                 current_memory += segment_memory
 
@@ -174,6 +183,7 @@ def find_data(
     segment_names: Optional[Iterable[str]] = None,
     data_dir: Optional[Path] = None,
     n_workers: int = 4,
+    thread: bool = True,
 ) -> Iterator[TimeSeriesDict]:
 
     """
@@ -225,4 +235,4 @@ def find_data(
     # directory
     method = fetch if data_dir is not None else partial(read, data_dir)
 
-    _data_generator(segments, channels, method, n_workers)
+    _data_generator(segments, channels, method, n_workers, thread)
