@@ -1,32 +1,20 @@
-from concurrent.futures import (
-    FIRST_COMPLETED,
-    ProcessPoolExecutor,
-    ThreadPoolExecutor,
-    wait,
-)
+import os
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from functools import partial
 from pathlib import Path
 from typing import Callable, Iterable, Iterator, List, Optional
 
 from gwpy.segments import Segment, SegmentList
 
+import mldatafind.utils as utils
 from mldatafind.io import fetch_timeseries, read_timeseries
 from mldatafind.segments import query_segments
 
-MEMORY_LIMIT = 1e10  # ? in bytes
-BITS_PER_BYTE = 8
+DEFAULT_SEGMENT_SERVER = os.getenv(
+    "DEFAULT_SEGMENT_SERVER", "https://segments.ligo.org"
+)
 
-
-def _calc_memory(
-    n_channels: int,
-    duration: float,
-    precision: int = 64,
-    sample_rate: float = 16384.0,
-):
-
-    n_samples = n_channels * duration * sample_rate
-    num_bytes = n_samples * (precision / BITS_PER_BYTE)
-    return num_bytes
+MEMORY_LIMIT = utils._available_memory() / 10
 
 
 def _data_generator(
@@ -38,24 +26,23 @@ def _data_generator(
     **method_kwargs,
 ) -> Iterator:
 
-    memory_limit = MEMORY_LIMIT
-
     if thread:
         executor = ThreadPoolExecutor(n_workers)
     else:
         executor = ProcessPoolExecutor(n_workers)
+    print(f"processing {len(segments)} segments")
 
     with executor as exc:
         # keep track of current memory
         # and number of futures currently running
         current_memory = 0
-        futures = []
+        futures = {}
 
         # while there are still futures or segments to analyze
         while segments or futures:
 
             # submit jobs until memory limit is reached
-            while current_memory < memory_limit and segments:
+            while current_memory < MEMORY_LIMIT and segments:
                 segment = segments.pop()
 
                 duration = segment[1] - segment[0]
@@ -63,33 +50,43 @@ def _data_generator(
                 # TODO: memory depends on sample rate;
                 # for strain channels this is typically 16khz,
                 # but unknown for auxiliary channels
-                segment_memory = _calc_memory(len(channels), duration)
-
+                segment_memory = utils._estimate_memory(
+                    len(channels), duration
+                )
+                print(
+                    f"Future submitted to query {duration} s of data"
+                    "and {segment_memory:.2f} GB of memory"
+                )
                 future = exc.submit(
                     method, channels, *segment, **method_kwargs
                 )
-                futures.append(future)
+                futures[segment_memory] = future
                 current_memory += segment_memory
 
             # memory limit is saturated:
             # wait until any one future completes and yield
-            ready, futures = wait(futures, return_when=FIRST_COMPLETED)
-            print(futures, segments)
-            for future in ready:
-                yield future.result()
+            print("waiting")
+            memories, done = utils.wait(futures)
+
+            for memory, future in zip(memories, done):
+                print("Handling future")
+                print(memory, future)
+                result = utils._handle_future(future)
+                yield result
+                current_memory -= memory
 
 
 def find_data(
     t0: float,
     tf: float,
     channels: Iterable[str],
-    sample_rate: float,
     min_duration: float = 0.0,
     segment_names: Optional[Iterable[str]] = None,
     data_dir: Optional[Path] = None,
     array_like: bool = False,
     n_workers: int = 4,
     thread: bool = True,
+    segment_url: str = DEFAULT_SEGMENT_SERVER,
 ) -> Iterator:
 
     """
@@ -131,19 +128,21 @@ def find_data(
     # if segment names are passed
     # query all those segments
     if segment_names is not None:
-        segments = query_segments(segment_names, t0, tf, min_duration)
+        segments = query_segments(
+            segment_names, t0, tf, min_duration, segment_url=segment_url
+        )
     else:
         segments = SegmentList(Segment([t0, tf]))
 
-    # if no data dir has
-    # been passed query via gwpy,
-    # otherwise load from
-    # directory
+    # if no data dir has been passed query via gwpy,
+    # otherwise load from specified directory
     method = (
         fetch_timeseries
-        if data_dir is not None
+        if data_dir is None
         else partial(read_timeseries, data_dir)
     )
-    _data_generator(
+
+    segments = [list(segment) for segment in segments]
+    return _data_generator(
         method, segments, channels, n_workers, thread, array_like=array_like
     )

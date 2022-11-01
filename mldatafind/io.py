@@ -207,7 +207,8 @@ def fetch_timeseries(
     Fetch multiple channel timeseries from nds2 and store in
     array or TimeSeriesDict
     """
-    ts_dict = TimeSeriesDict.get(channels, start=t0, end=tf, nproc=nproc)
+    print(channels, t0, tf, array_like, nproc)
+    ts_dict = TimeSeriesDict.get(channels, start=t0, end=tf)
     if not array_like:
         _validate_ts_dict(ts_dict)
         return ts_dict
