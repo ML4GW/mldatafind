@@ -1,8 +1,12 @@
+import logging
 import os
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from functools import partial
 from pathlib import Path
-from typing import Callable, Iterable, Iterator, List, Optional
+from typing import TYPE_CHECKING, Callable, Iterable, Iterator, List, Optional
+
+if TYPE_CHECKING:
+    from concurrent.futures import Future
 
 from gwpy.segments import Segment, SegmentList
 
@@ -14,7 +18,17 @@ DEFAULT_SEGMENT_SERVER = os.getenv(
     "DEFAULT_SEGMENT_SERVER", "https://segments.ligo.org"
 )
 
-MEMORY_LIMIT = utils._available_memory() / 10
+MEMORY_LIMIT = 5  # GB
+
+
+def _handle_future(future: "Future"):
+    """Raise exception if future failed
+    otherwise return its results
+    """
+    exc = future.exception()
+    if exc is not None:
+        raise exc
+    return future.result()
 
 
 def _data_generator(
@@ -30,7 +44,8 @@ def _data_generator(
         executor = ThreadPoolExecutor(n_workers)
     else:
         executor = ProcessPoolExecutor(n_workers)
-    print(f"processing {len(segments)} segments")
+
+    logging.info(f"Finding {len(segments)} segments")
 
     with executor as exc:
         # keep track of current memory
@@ -53,25 +68,23 @@ def _data_generator(
                 segment_memory = utils._estimate_memory(
                     len(channels), duration
                 )
-                print(
-                    f"Future submitted to query {duration} s of data"
-                    "and {segment_memory:.2f} GB of memory"
-                )
+
                 future = exc.submit(
                     method, channels, *segment, **method_kwargs
+                )
+                logging.info(
+                    f"Future submitted to query {duration} s of data"
+                    f"and {segment_memory:.2f} GB of memory"
                 )
                 futures[segment_memory] = future
                 current_memory += segment_memory
 
             # memory limit is saturated:
             # wait until any one future completes and yield
-            print("waiting")
             memories, done = utils.wait(futures)
 
-            for memory, future in zip(memories, done):
-                print("Handling future")
-                print(memory, future)
-                result = utils._handle_future(future)
+            for memory, f in zip(memories, done):
+                result = _handle_future(f)
                 yield result
                 current_memory -= memory
 
