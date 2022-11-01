@@ -198,7 +198,7 @@ def fetch_timeseries(
     channels: List[str],
     t0: float,
     tf: float,
-    nproc: int = 2,
+    nproc: int = 1,
     array_like: bool = True,
 ):
     """

@@ -5,6 +5,8 @@ from functools import partial
 from pathlib import Path
 from typing import TYPE_CHECKING, Callable, Iterable, Iterator, List, Optional
 
+import numpy as np
+
 if TYPE_CHECKING:
     from concurrent.futures import Future
 
@@ -37,6 +39,7 @@ def _data_generator(
     channels: Iterable[str],
     n_workers: int,
     thread: bool,
+    chunk_size: Optional[float] = None,
     **method_kwargs,
 ) -> Iterator:
 
@@ -62,9 +65,6 @@ def _data_generator(
 
                 duration = segment[1] - segment[0]
 
-                # TODO: memory depends on sample rate;
-                # for strain channels this is typically 16khz,
-                # but unknown for auxiliary channels
                 segment_memory = utils._estimate_memory(
                     len(channels), duration
                 )
@@ -89,12 +89,29 @@ def _data_generator(
                 current_memory -= memory
 
 
+def split_segments(segments: List, chunk_size: float):
+    out = []
+    for segment in segments:
+        duration = segment[1] - segment[0]
+        if duration <= chunk_size:
+            out.append(segment)
+        else:
+            boundaries = np.arange(segment[0], segment[1], chunk_size)
+            n_segs = len(boundaries) - 1
+            segments = [
+                [boundaries[i], boundaries[i + 1]] for i in range(n_segs)
+            ]
+            out.extend(segments)
+    return out
+
+
 def find_data(
     t0: float,
     tf: float,
     channels: Iterable[str],
     min_duration: float = 0.0,
     segment_names: Optional[Iterable[str]] = None,
+    chunk_size: Optional[float] = None,
     data_dir: Optional[Path] = None,
     array_like: bool = False,
     n_workers: int = 4,
@@ -156,6 +173,13 @@ def find_data(
     )
 
     segments = [list(segment) for segment in segments]
+
     return _data_generator(
-        method, segments, channels, n_workers, thread, array_like=array_like
+        method,
+        segments,
+        channels,
+        n_workers,
+        thread,
+        chunk_size,
+        array_like=array_like,
     )
