@@ -63,7 +63,7 @@ def data_generator(
             memory = futures.pop(return_value)
             current_memory -= memory
             return_value = return_value.result()
-        else:
+        elif return_value is not None:
             rm_futures.append(return_value)
 
         # if our memory is currently full or we have no
@@ -80,7 +80,7 @@ def data_generator(
         # generator of segments rather than
         if chunk_size is not None:
             if duration > chunk_size:
-                num_segments = (duration - 1) // chunk_size + 1
+                num_segments = int((duration - 1) // chunk_size) + 1
                 segs = []
                 for i in range(num_segments):
                     end = min(start + (i + 1) * chunk_size, stop)
@@ -96,6 +96,7 @@ def data_generator(
                 exc,
                 segs,
                 loader,
+                channels,
                 chunk_size=None,
                 current_memory=current_memory,
                 retain_order=True,
@@ -148,7 +149,7 @@ def data_generator(
                 yield maybe_submit(current_memory, future)
         else:
             done, _ = wait(futures.keys(), timeout=1e-3)
-            for f in done:
+            for future in done:
                 yield maybe_submit(current_memory, future)
 
 
@@ -218,7 +219,7 @@ def find_data(
 
     exc_type = ThreadPoolExecutor if thread else ProcessPoolExecutor
     with exc_type(n_workers) as exc:
-        return data_generator(
+        yield from data_generator(
             exc,
             segments,
             loader,
