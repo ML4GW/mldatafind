@@ -71,7 +71,7 @@ class TestDataGeneratorRespectsMemory:
             loader.assert_has_calls(calls)
 
     def test_with_chunking(self, segments, channels, s_in_gb, exc_type):
-        find.MEMORY_LIMIT = 0.8
+        find.MEMORY_LIMIT = 0.5
 
         loaded = Mock()
         loader = Mock(return_value=loaded)
@@ -99,20 +99,46 @@ class TestDataGeneratorRespectsMemory:
             )
             it = iter(gen)
 
+            # the first segment is shorter than the
+            # chunk length, and so it should be a
+            # length one generator
             subgen = next(it)
             subit = iter(subgen)
             f = next(subit)
             assert f is loaded
             with pytest.raises(StopIteration):
                 next(subit)
+
+            # ensure that at this point our loader has
+            # only been called once on the first segment
             loader.assert_called_once_with(*calls[0].args)
 
+            # now load the next generator, which shoul
+            # have six segments, the last of which is
+            # shorter than the rest
             subgen = next(it)
             subit = iter(subgen)
             f = next(subit)
+
+            # after the first `next` has been called,
+            # the first 4 chunks from this segment should
+            # have been submitted: 1 for the one we just
+            # got, and then 3 more to fill up the memory
+            # after that one was gotten
             time.sleep(1e-3)
-            loader.assert_has_calls(calls[1:7])
+            loader.assert_has_calls(calls[1:4])
+            with pytest.raises(AssertionError):
+                loader.assert_has_calls(calls[4:])
+
+            # now finish iterating through and ensure
+            # the generator has the appropriate length
             for i in range(5):
                 f = next(subit)
             with pytest.raises(StopIteration):
                 next(subit)
+
+            # now make sure all the expected calls
+            # to load have now been made
+            loader.assert_has_calls(calls[:7])
+            with pytest.raises(AssertionError):
+                loader.assert_has_calls(calls[7:])
