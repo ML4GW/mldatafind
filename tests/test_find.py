@@ -22,7 +22,7 @@ def s_in_gb(channels):
     return f
 
 
-@pytest.fixture(params=[ThreadPoolExecutor, ProcessPoolExecutor])
+@pytest.fixture(params=[ThreadPoolExecutor])  # , ProcessPoolExecutor])
 def exc_type(request):
     return request.param
 
@@ -41,7 +41,7 @@ class TestDataGeneratorRespectsMemory:
         return [
             (0, s_in_gb(0.1)),
             (s_in_gb(0.1), s_in_gb(0.9)),
-            (s_in_gb(1), s_in_gb(1.2)),
+            (s_in_gb(1), s_in_gb(1.25)),
             (s_in_gb(1.3), s_in_gb(1.6)),
         ]
 
@@ -64,7 +64,7 @@ class TestDataGeneratorRespectsMemory:
             f = next(it)
             assert f is loaded
             time.sleep(1e-2)
-            loader.assert_called_with(channels, *segments[1])
+            loader.assert_called_with(*calls[1].args)
 
             f = next(it)
             time.sleep(1e-1)
@@ -100,24 +100,19 @@ class TestDataGeneratorRespectsMemory:
             it = iter(gen)
 
             subgen = next(it)
-            time.sleep(1e-2)
-            # at this point, the 0.8s segment should
-            # have been fully loaded, so all of the
-            # calls for the first and second segments
-            # should have happened. But the next segment
-            # can't have started yet
-            loaded.assert_has_calls(calls[:6])
-
             subit = iter(subgen)
             f = next(subit)
             assert f is loaded
             with pytest.raises(StopIteration):
                 next(subit)
+            loader.assert_called_once_with(*calls[0].args)
 
             subgen = next(it)
-            time.sleep(1e-2)
-            loaded.assert_has_calls(calls[:6] + calls[8:10])
-            for n, i in enumerate(subit):
-                assert i is loaded
-            assert (n + 1) == 5
-            loaded.assert_has_calls(calls[:10])
+            subit = iter(subgen)
+            f = next(subit)
+            time.sleep(1e-3)
+            loader.assert_has_calls(calls[1:7])
+            for i in range(5):
+                f = next(subit)
+            with pytest.raises(StopIteration):
+                next(subit)

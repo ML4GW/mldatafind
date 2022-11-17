@@ -125,10 +125,10 @@ def data_generator(
         maybe_submit(current_memory, None)
         if chunk_size is not None or retain_order:
             fs = list(futures.keys())
-            if retain_order:
+            if chunk_size is None:
                 done = True
                 fs = [f for f in fs if (done := done and f.done())]
-        else:
+        elif chunk_size is None:
             fs, _ = wait(futures.keys(), timeout=1e-3)
 
         for future in fs:
