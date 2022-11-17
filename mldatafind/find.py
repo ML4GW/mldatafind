@@ -69,7 +69,7 @@ def data_generator(
             return return_value
 
         # check the next segment to see if we can load it
-        start, stop = segments.pop()
+        start, stop = segments.pop(0)
         duration = stop - start
 
         # if we're chunking, it only matters if the first
