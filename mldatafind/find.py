@@ -62,10 +62,9 @@ def data_generator(
                 current_memory[0] -= memory
                 return_value = return_value.result()
 
-        # if our memory is currently full or we have no
-        # more segments to submit for loading, then
-        # short-circuit here
-        while current_memory[0] <= MEMORY_LIMIT or segments:
+        # start submitting futures until we fill
+        # up the hole we created in our memory limit
+        while current_memory[0] <= MEMORY_LIMIT and segments:
             start, stop = segments.pop(0)
             duration = stop - start
 
@@ -117,7 +116,7 @@ def data_generator(
 
                 # record its memory footprint and future
                 current_memory[0] += mem
-                futures[future] = None
+                futures[future] = mem
 
         return return_value
 
