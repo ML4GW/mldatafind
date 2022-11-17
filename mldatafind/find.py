@@ -65,64 +65,61 @@ def data_generator(
         # if our memory is currently full or we have no
         # more segments to submit for loading, then
         # short-circuit here
-        if current_memory[0] > MEMORY_LIMIT or not segments:
-            return return_value
+        while current_memory[0] <= MEMORY_LIMIT or segments:
+            start, stop = segments.pop(0)
+            duration = stop - start
 
-        # check the next segment to see if we can load it
-        start, stop = segments.pop()
-        duration = stop - start
-
-        # if we're chunking, it only matters if the first
-        # chunk will put us over the limit
-        if chunk_size is not None:
-            size = min(duration, chunk_size)
-            mem = utils._estimate_memory(len(channels), size)
-        else:
-            mem = utils._estimate_memory(len(channels), duration)
-
-        if (current_memory[0] + mem) > MEMORY_LIMIT:
-            segments.insert(0, (start, stop))
-            return return_value
-
-        # if we're chunking our segments, return a
-        # generator of segments rather than
-        if chunk_size is not None:
-            if duration > chunk_size:
-                num_segments = int((duration - 1) // chunk_size) + 1
-                segs = []
-                for i in range(num_segments):
-                    end = min(start + (i + 1) * chunk_size, stop)
-                    seg = (start + i * chunk_size, end)
-                    segs.append(seg)
+            # if we're chunking, it only matters if the first
+            # chunk will put us over the limit
+            if chunk_size is not None:
+                size = min(duration, chunk_size)
+                mem = utils._estimate_memory(len(channels), size)
             else:
-                segs = [(start, stop)]
+                mem = utils._estimate_memory(len(channels), duration)
 
-            # call this function recursively but with
-            # chunking turned off since we know that
-            # all the segments will have the right length
-            gen = data_generator(
-                exc,
-                segs,
-                loader,
-                channels,
-                chunk_size=None,
-                current_memory=current_memory,
-                retain_order=True,
-            )
-            futures[gen] = None
-            return return_value or gen
+            if (current_memory[0] + mem) > MEMORY_LIMIT:
+                segments.insert(0, (start, stop))
+                break
 
-        # if we're not chunking, submit this segment for loading
-        future = exc.submit(loader, channels, start, stop)
-        logging.debug(
-            "Submitted future to query {}s of data "
-            "and {:0.2f}GB of memory".format(duration, mem)
-        )
+            # if we're chunking our segments, return a
+            # generator of segments rather than
+            if chunk_size is not None:
+                if duration > chunk_size:
+                    num_segments = int((duration - 1) // chunk_size) + 1
+                    segs = []
+                    for i in range(num_segments):
+                        end = min(start + (i + 1) * chunk_size, stop)
+                        seg = (start + i * chunk_size, end)
+                        segs.append(seg)
+                else:
+                    segs = [(start, stop)]
 
-        # record its memory footprint and future
-        current_memory[0] += mem
-        futures[future] = mem
-        return return_value or future
+                # call this function recursively but with
+                # chunking turned off since we know that
+                # all the segments will have the right length
+                gen = data_generator(
+                    exc,
+                    segs,
+                    loader,
+                    channels,
+                    chunk_size=None,
+                    current_memory=current_memory,
+                    retain_order=True,
+                )
+                futures[gen] = None
+            else:
+                # if we're not chunking, submit this segment for loading
+                future = exc.submit(loader, channels, start, stop)
+                logging.debug(
+                    "Submitted future to query {}s of data "
+                    "and {:0.2f}GB of memory".format(duration, mem)
+                )
+
+                # record its memory footprint and future
+                current_memory[0] += mem
+                futures[future] = None
+
+        return return_value
 
     while segments or futures:
         # submit as many jobs as we can up front
@@ -133,7 +130,7 @@ def data_generator(
         if retain_order:
             fs = list(futures.keys())
             for future in fs:
-                if not future.done():
+                if chunk_size is None and not future.done():
                     break
                 yield maybe_submit(current_memory, future)
         else:
