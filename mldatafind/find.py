@@ -4,7 +4,7 @@ from collections import OrderedDict
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, wait
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, Iterator, List, Optional, Tuple
+from typing import Iterable, Iterator, List, Optional, Sequence, Tuple
 
 from gwpy.segments import Segment, SegmentList
 
@@ -39,42 +39,50 @@ def data_generator(
     exc,
     segments: List[Tuple[float, float]],
     loader: Loader,
-    channels: List[str],
+    channels: Sequence[str],
     chunk_size: Optional[float] = None,
-    current_memory: float = 0,
+    current_memory: Optional[List[float]] = None,
     retain_order: bool = False,
 ):
-    # if we're chunking, we don't need to keep track
-    # of memory since we'll leave that to the generators
-    # that we'll create. If we're not, we have to keep
-    # track of the memory demanded by each load so that
-    # we can know how much each future will free once it
-    # gets processed (and presumably deleted)
-    if chunk_size is not None:
-        futures, rm_futures = [], []
-    else:
-        futures = OrderedDict()
+    if current_memory is None:
+        current_memory = [0]
+    futures = OrderedDict()
 
     def maybe_submit(current_memory, return_value=None):
-        # if we passed a future and we're not chunking,
-        # this means we're about to yield it, so subtract
-        # its memory footprint from our running total
-        if return_value is not None and chunk_size is None:
+        # if we passed a future or generator to return,
+        # remove it from our futures tracker
+        if return_value is not None:
             memory = futures.pop(return_value)
-            current_memory -= memory
-            return_value = return_value.result()
-        elif return_value is not None:
-            rm_futures.append(return_value)
+
+            if memory is not None:
+                # this means we're not chunking and so
+                # this represents a future with some
+                # corresponding amount of memory, so
+                # subtract it from our tracker
+                current_memory[0] -= memory
+                return_value = return_value.result()
 
         # if our memory is currently full or we have no
         # more segments to submit for loading, then
         # short-circuit here
-        if current_memory > MEMORY_LIMIT or not segments:
+        if current_memory[0] > MEMORY_LIMIT or not segments:
             return return_value
 
         # check the next segment to see if we can load it
         start, stop = segments.pop()
         duration = stop - start
+
+        # if we're chunking, it only matters if the first
+        # chunk will put us over the limit
+        if chunk_size is not None:
+            size = min(duration, chunk_size)
+            mem = utils._estimate_memory(len(channels), size)
+        else:
+            mem = utils._estimate_memory(len(channels), duration)
+
+        if (current_memory[0] + mem) > MEMORY_LIMIT:
+            segments.insert(0, (start, stop))
+            return return_value
 
         # if we're chunking our segments, return a
         # generator of segments rather than
@@ -87,7 +95,7 @@ def data_generator(
                     seg = (start + i * chunk_size, end)
                     segs.append(seg)
             else:
-                segs = [seg]
+                segs = [(start, stop)]
 
             # call this function recursively but with
             # chunking turned off since we know that
@@ -101,14 +109,10 @@ def data_generator(
                 current_memory=current_memory,
                 retain_order=True,
             )
-            futures.append(gen)
+            futures[gen] = None
             return return_value or gen
 
         # if we're not chunking, submit this segment for loading
-        # TODO: should we check if this is going to put us over?
-        # The downside is that we'll never be over, and so the
-        # check at the top will have to be adjusted.
-        mem = utils._estimate_memory(len(channels), duration)
         future = exc.submit(loader, channels, start, stop)
         logging.debug(
             "Submitted future to query {}s of data "
@@ -116,7 +120,7 @@ def data_generator(
         )
 
         # record its memory footprint and future
-        current_memory += mem
+        current_memory[0] += mem
         futures[future] = mem
         return return_value or future
 
@@ -126,22 +130,7 @@ def data_generator(
             if maybe_submit(current_memory, None) is None:
                 break
 
-        # if we're chunking, then return generators
-        # as they become available
-        if chunk_size is not None:
-            for generator in futures:
-                yield maybe_submit(current_memory, generator)
-
-            # now get rid of any generators that have been yielded
-            for future in rm_futures:
-                futures.pop(future)
-            rm_futures = []
-        elif retain_order:
-            # if we're retaining order, break as
-            # soon as we encounter a future that
-            # hasn't completed because we don't
-            # care if any ones after it have. Don't
-            # iterate through the dict in-place
+        if retain_order:
             fs = list(futures.keys())
             for future in fs:
                 if not future.done():
@@ -156,7 +145,7 @@ def data_generator(
 def find_data(
     t0: float,
     tf: float,
-    channels: Iterable[str],
+    channels: Sequence[str],
     min_duration: float = 0.0,
     segment_names: Optional[Iterable[str]] = None,
     chunk_size: Optional[float] = None,
@@ -225,5 +214,5 @@ def find_data(
             loader,
             channels,
             chunk_size=chunk_size,
-            current_memory=0,
+            current_memory=None,
         )
