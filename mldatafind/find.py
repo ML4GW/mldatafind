@@ -122,20 +122,17 @@ def data_generator(
 
     while segments or futures:
         # submit as many jobs as we can up front
-        while True:
-            if maybe_submit(current_memory, None) is None:
-                break
-
-        if retain_order:
+        maybe_submit(current_memory, None)
+        if chunk_size is not None or retain_order:
             fs = list(futures.keys())
-            for future in fs:
-                if chunk_size is None and not future.done():
-                    break
-                yield maybe_submit(current_memory, future)
+            if retain_order:
+                done = True
+                fs = [f for f in fs if (done := done and f.done())]
         else:
-            done, _ = wait(futures.keys(), timeout=1e-3)
-            for future in done:
-                yield maybe_submit(current_memory, future)
+            fs, _ = wait(futures.keys(), timeout=1e-3)
+
+        for future in fs:
+            yield maybe_submit(current_memory, future)
 
 
 def find_data(
