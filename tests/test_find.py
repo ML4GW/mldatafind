@@ -1,5 +1,5 @@
 import time
-from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import Mock, call
 
 import pytest
@@ -22,7 +22,7 @@ def s_in_gb(channels):
     return f
 
 
-@pytest.fixture(params=[ThreadPoolExecutor])  # , ProcessPoolExecutor])
+@pytest.fixture(params=[ThreadPoolExecutor])
 def exc_type(request):
     return request.param
 
