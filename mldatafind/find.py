@@ -1,14 +1,10 @@
 import logging
 import os
-from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
-from functools import partial
+from collections import OrderedDict
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, wait
+from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable, Iterable, Iterator, List, Optional
-
-import numpy as np
-
-if TYPE_CHECKING:
-    from concurrent.futures import Future
+from typing import Iterable, Iterator, List, Optional, Sequence, Tuple
 
 from gwpy.segments import Segment, SegmentList
 
@@ -23,92 +19,126 @@ DEFAULT_SEGMENT_SERVER = os.getenv(
 MEMORY_LIMIT = 5  # GB
 
 
-def _handle_future(future: "Future"):
-    """Raise exception if future failed
-    otherwise return its results
-    """
-    exc = future.exception()
-    if exc is not None:
-        raise exc
-    return future.result()
+@dataclass(frozen=True)
+class Loader:
+    data_dir: Optional[Path] = None
+    array_like: bool = False
 
-
-def _data_generator(
-    method: Callable,
-    segments: List,
-    channels: Iterable[str],
-    n_workers: int,
-    thread: bool,
-    chunk_size: Optional[float] = None,
-    **method_kwargs,
-) -> Iterator:
-
-    if thread:
-        executor = ThreadPoolExecutor(n_workers)
-    else:
-        executor = ProcessPoolExecutor(n_workers)
-
-    logging.info(f"Finding {len(segments)} segments")
-
-    with executor as exc:
-        # keep track of current memory
-        # and number of futures currently running
-        current_memory = 0
-        futures = {}
-
-        # while there are still futures or segments to analyze
-        while segments or futures:
-
-            # submit jobs until memory limit is reached
-            while current_memory < MEMORY_LIMIT and segments:
-                segment = segments.pop()
-
-                duration = segment[1] - segment[0]
-
-                segment_memory = utils._estimate_memory(
-                    len(channels), duration
-                )
-
-                future = exc.submit(
-                    method, channels, *segment, **method_kwargs
-                )
-                logging.info(
-                    f"Future submitted to query {duration} s of data"
-                    f"and {segment_memory:.2f} GB of memory"
-                )
-                futures[segment_memory] = future
-                current_memory += segment_memory
-
-            # memory limit is saturated:
-            # wait until any one future completes and yield
-            memories, done = utils.wait(futures)
-
-            for memory, f in zip(memories, done):
-                result = _handle_future(f)
-                yield result
-                current_memory -= memory
-
-
-def split_segments(segments: List, chunk_size: float):
-    out = []
-    for segment in segments:
-        duration = segment[1] - segment[0]
-        if duration <= chunk_size:
-            out.append(segment)
+    def __call__(self, channels: List[str], start: float, stop: float):
+        if self.data_dir is not None:
+            return read_timeseries(
+                self.data_dir, channels, start, stop, self.array_like
+            )
         else:
-            boundaries = np.arange(segment[0], segment[1], chunk_size)
-            n_segs = len(boundaries) - 1
-            segments = [
-                [boundaries[i], boundaries[i + 1]] for i in range(n_segs)
-            ]
-            out.extend(segments)
-    return out
+            return fetch_timeseries(
+                channels, start, stop, array_like=self.array_like
+            )
+
+
+def data_generator(
+    exc,
+    segments: List[Tuple[float, float]],
+    loader: Loader,
+    channels: Sequence[str],
+    chunk_size: Optional[float] = None,
+    current_memory: Optional[List[float]] = None,
+    retain_order: bool = False,
+):
+    if current_memory is None:
+        current_memory = [0]
+    futures = OrderedDict()
+
+    def maybe_submit(current_memory, return_value=None):
+        # if we passed a future or generator to return,
+        # remove it from our futures tracker
+        if return_value is not None:
+            memory = futures.pop(return_value)
+
+            if memory is not None:
+                # this means we're not chunking and so
+                # this represents a future with some
+                # corresponding amount of memory, so
+                # subtract it from our tracker
+                current_memory[0] -= memory
+                return_value = return_value.result()
+
+        # start submitting futures until we fill
+        # up the hole we created in our memory limit
+        while current_memory[0] <= MEMORY_LIMIT and segments:
+            start, stop = segments.pop(0)
+            duration = stop - start
+
+            # if we're chunking, it only matters if the first
+            # chunk will put us over the limit
+            if chunk_size is not None:
+                size = min(duration, chunk_size)
+                mem = utils._estimate_memory(len(channels), size)
+            else:
+                mem = utils._estimate_memory(len(channels), duration)
+
+            if (current_memory[0] + mem) > MEMORY_LIMIT:
+                segments.insert(0, (start, stop))
+                break
+
+            # if we're chunking our segments, return a
+            # generator of segments rather than
+            if chunk_size is not None:
+                if duration > chunk_size:
+                    num_segments = int((duration - 1) // chunk_size) + 1
+                    segs = []
+                    for i in range(num_segments):
+                        end = min(start + (i + 1) * chunk_size, stop)
+                        seg = (start + i * chunk_size, end)
+                        segs.append(seg)
+                else:
+                    segs = [(start, stop)]
+
+                # call this function recursively but with
+                # chunking turned off since we know that
+                # all the segments will have the right length
+                gen = data_generator(
+                    exc,
+                    segs,
+                    loader,
+                    channels,
+                    chunk_size=None,
+                    current_memory=current_memory,
+                    retain_order=True,
+                )
+                futures[gen] = None
+            else:
+                # if we're not chunking, submit this segment for loading
+                future = exc.submit(loader, channels, start, stop)
+                logging.debug(
+                    "Submitted future to query {}s of data "
+                    "and {:0.2f}GB of memory".format(duration, mem)
+                )
+
+                # record its memory footprint and future
+                current_memory[0] += mem
+                futures[future] = mem
+
+        return return_value
+
+    while segments or futures:
+        # submit as many jobs as we can up front
+        maybe_submit(current_memory, None)
+        if chunk_size is not None or retain_order:
+            fs = list(futures.keys())
+            if chunk_size is None:
+                done = True
+                fs = [f for f in fs if (done := done and f.done())]
+        elif chunk_size is None:
+            fs, _ = wait(futures.keys(), timeout=1e-3)
+
+        for future in fs:
+            yield maybe_submit(current_memory, future)
 
 
 def find_data(
     t0: float,
     tf: float,
-    channels: Iterable[str],
+    channels: Sequence[str],
     min_duration: float = 0.0,
     segment_names: Optional[Iterable[str]] = None,
     chunk_size: Optional[float] = None,
@@ -166,20 +196,16 @@ def find_data(
 
     # if no data dir has been passed query via gwpy,
     # otherwise load from specified directory
-    method = (
-        fetch_timeseries
-        if data_dir is None
-        else partial(read_timeseries, data_dir)
-    )
+    loader = Loader(data_dir, array_like)
+    segments = [tuple(segment) for segment in segments]
 
-    segments = [list(segment) for segment in segments]
-
-    return _data_generator(
-        method,
-        segments,
-        channels,
-        n_workers,
-        thread,
-        chunk_size,
-        array_like=array_like,
-    )
+    exc_type = ThreadPoolExecutor if thread else ProcessPoolExecutor
+    with exc_type(n_workers) as exc:
+        yield from data_generator(
+            exc,
+            segments,
+            loader,
+            channels,
+            chunk_size=chunk_size,
+            current_memory=None,
+        )
