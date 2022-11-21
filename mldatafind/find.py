@@ -143,6 +143,7 @@ def find_data(
     segment_names: Optional[Iterable[str]] = None,
     chunk_size: Optional[float] = None,
     data_dir: Optional[Path] = None,
+    retain_order=False,
     array_like: bool = False,
     n_workers: int = 4,
     thread: bool = True,
@@ -172,11 +173,25 @@ def find_data(
         min_duration: minimum duration to yield segments
         segment_names: Iterable of segment names for querying from dq_segdb
         data_dir: If specified, will read data from h5 files located here.
+        retain_order:
+            If True, segments will be returned in chronological order.
+            Note that if a chunk_size is passed this is always True.
+        array_like:
+            If True, return data in numpy arrays. Otherwise, will return
+            gwpy.Timeseries.TimeSeriesDict
+        n_workers:
+            Number of workers for Executor to use
+        thread: If True, use thread pool, otherwise process pool
+        segment_url: URL of database for querying segments
 
     Returns:
-        Generator of TimeSeriesDict's for each segment of data
-
+        Iterator of timeseries data for requested segments
     """
+
+    if not retain_order and chunk_size:
+        logging.warning(
+            "When chunk size is passed segment order is always maintained"
+        )
 
     length = tf - t0
     if min_duration > length:
@@ -208,4 +223,5 @@ def find_data(
             channels,
             chunk_size=chunk_size,
             current_memory=None,
+            retain_order=retain_order,
         )
