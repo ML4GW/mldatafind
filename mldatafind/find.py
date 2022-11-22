@@ -4,12 +4,9 @@ from collections import OrderedDict
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, wait
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, Iterator, List, Optional, Sequence, Tuple
-
-from gwpy.segments import Segment, SegmentList
+from typing import Iterator, List, Optional, Sequence, Tuple
 
 from mldatafind.io import fetch_timeseries, read_timeseries
-from mldatafind.segments import query_segments
 
 DEFAULT_SEGMENT_SERVER = os.getenv(
     "DEFAULT_SEGMENT_SERVER", "https://segments.ligo.org"
@@ -152,11 +149,8 @@ def data_generator(
 
 
 def find_data(
-    t0: float,
-    tf: float,
+    segments: List[Tuple[float, float]],
     channels: Sequence[str],
-    min_duration: float = 0.0,
-    segment_names: Optional[Iterable[str]] = None,
     chunk_size: Optional[float] = None,
     data_dir: Optional[Path] = None,
     retain_order=False,
@@ -167,16 +161,15 @@ def find_data(
 ) -> Iterator:
 
     """
-    Find gravitational wave data from `channels` over
-    requested period `t0` to `tf`, yielding TimeSeriesDict's of the data
-    for each segment.
+    Find gravitational wave data from `channels` during segments corresponding
+    to `segment_names` between  requested period `t0` to `tf`,
+    yielding TimeSeriesDict's of the data for each active segment.
 
     If `segment_names` is None, will use the entire duration
     from `t0` to `tf` as the only segment.
     Otherwise, corresponding segments / data quality flags will be queried
     via DataQualityDict.query_dqsegdb, and their intersection will be used.
     Only segments of length greater than `min_duration` will be yielded.
-
 
     If `data_dir` is specified, will read in the segments of data from h5 files
     following the f`{prefix}_{t0}_{duration}.h5` syntax. These files must
@@ -208,22 +201,6 @@ def find_data(
         logging.warning(
             "When chunk size is passed segment order is always maintained"
         )
-
-    length = tf - t0
-    if min_duration > length:
-        raise ValueError(
-            f"Minimum duration ({min_duration} s ) is longer than"
-            f"requested analysis interval ({length} s)"
-        )
-
-    # if segment names are passed
-    # query all those segments
-    if segment_names is not None:
-        segments = query_segments(
-            segment_names, t0, tf, min_duration, segment_url=segment_url
-        )
-    else:
-        segments = SegmentList(Segment([t0, tf]))
 
     # if no data dir has been passed query via gwpy,
     # otherwise load from specified directory

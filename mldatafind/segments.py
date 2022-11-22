@@ -9,7 +9,7 @@ def query_segments(
     t0: float,
     tf: float,
     min_duration: float = 0,
-    **kwargs
+    **kwargs,
 ) -> SegmentList:
     """
     Query segments from dqsegdb and return the intersection.
@@ -23,6 +23,13 @@ def query_segments(
         **kwargs: Keyword arguments to DataQualityDict.query_dqsegdb
     Returns SegmentList
     """
+
+    length = tf - t0
+    if min_duration > length:
+        raise ValueError(
+            f"Minimum duration ({min_duration} s) is longer than "
+            f"requested analysis interval ({length} s)"
+        )
 
     segments = DataQualityDict.query_dqsegdb(
         segment_names,
