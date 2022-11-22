@@ -3,9 +3,15 @@ from typing import Iterable
 import numpy as np
 from gwpy.segments import DataQualityDict, SegmentList
 
+# TODO: read in segment_url from DEFAULT_SEGMENT_SERVER
+
 
 def query_segments(
-    segment_names: Iterable[str], t0: float, tf: float, min_duration: float = 0
+    segment_names: Iterable[str],
+    t0: float,
+    tf: float,
+    min_duration: float = 0,
+    **kwargs
 ) -> SegmentList:
     """
     Query segments from dqsegdb and return the intersection.
@@ -16,7 +22,7 @@ def query_segments(
         t0: Start time of segments
         tf: Stop time of segments
         min_duration: Minimum length of intersected segments
-
+        **kwargs: Keyword arguments to DataQualityDict.query_dqsegdb
     Returns SegmentList
     """
 
@@ -24,6 +30,7 @@ def query_segments(
         segment_names,
         t0,
         tf,
+        **kwargs,
     )
 
     segments = np.array(segments.intersection().active.copy())
