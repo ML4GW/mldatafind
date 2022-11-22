@@ -198,8 +198,8 @@ def fetch_timeseries(
     channels: List[str],
     t0: float,
     tf: float,
-    array_like: bool = True,
     nproc: int = 1,
+    array_like: bool = True,
 ):
     """
     Thin wrapper around TimeSeriesDict.get
@@ -207,7 +207,9 @@ def fetch_timeseries(
     Fetch multiple channel timeseries from nds2 and store in
     array or TimeSeriesDict
     """
-    ts_dict = TimeSeriesDict.get(channels, start=t0, end=tf, nproc=nproc)
+    ts_dict = TimeSeriesDict.get(
+        channels, start=t0, end=tf, nproc=nproc, verbose=True
+    )
     if not array_like:
         _validate_ts_dict(ts_dict)
         return ts_dict
