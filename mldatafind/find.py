@@ -16,7 +16,23 @@ DEFAULT_SEGMENT_SERVER = os.getenv(
     "DEFAULT_SEGMENT_SERVER", "https://segments.ligo.org"
 )
 
-MEMORY_LIMIT = 5  # GB
+
+BITS_PER_BYTE = 8
+
+
+def _estimate_memory(
+    n_channels: int,
+    duration: float,
+    precision: int = 64,
+    sample_rate: float = 16384.0,
+):
+    """
+    Estimate memory consumption of timeseries in GB
+    """
+    n_samples = n_channels * duration * sample_rate
+    num_bytes = n_samples * (precision / BITS_PER_BYTE)
+    num_gb = num_bytes / (1024**3)
+    return num_gb
 
 
 @dataclass(frozen=True)
@@ -40,6 +56,7 @@ def data_generator(
     segments: List[Tuple[float, float]],
     loader: Loader,
     channels: Sequence[str],
+    memory_limit: float = 5.0,
     chunk_size: Optional[float] = None,
     current_memory: Optional[List[float]] = None,
     retain_order: bool = False,
@@ -64,7 +81,7 @@ def data_generator(
 
         # start submitting futures until we fill
         # up the hole we created in our memory limit
-        while current_memory[0] <= MEMORY_LIMIT and segments:
+        while current_memory[0] <= memory_limit and segments:
             start, stop = segments.pop(0)
             duration = stop - start
 
@@ -76,7 +93,7 @@ def data_generator(
             else:
                 mem = utils._estimate_memory(len(channels), duration)
 
-            if (current_memory[0] + mem) > MEMORY_LIMIT:
+            if (current_memory[0] + mem) > memory_limit:
                 segments.insert(0, (start, stop))
                 break
 
@@ -148,6 +165,7 @@ def find_data(
     n_workers: int = 4,
     thread: bool = True,
     segment_url: str = DEFAULT_SEGMENT_SERVER,
+    memory_limit: float = 5.0,
 ) -> Iterator:
 
     """
@@ -221,7 +239,9 @@ def find_data(
             segments,
             loader,
             channels,
+            memory_limit=memory_limit,
             chunk_size=chunk_size,
             current_memory=None,
             retain_order=retain_order,
+            memory_limit=memory_limit,
         )
