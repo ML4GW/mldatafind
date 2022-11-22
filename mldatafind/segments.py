@@ -3,8 +3,6 @@ from typing import Iterable
 import numpy as np
 from gwpy.segments import DataQualityDict, SegmentList
 
-# TODO: read in segment_url from DEFAULT_SEGMENT_SERVER
-
 
 def query_segments(
     segment_names: Iterable[str],
