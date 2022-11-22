@@ -8,7 +8,6 @@ from typing import Iterable, Iterator, List, Optional, Sequence, Tuple
 
 from gwpy.segments import Segment, SegmentList
 
-import mldatafind.utils as utils
 from mldatafind.io import fetch_timeseries, read_timeseries
 from mldatafind.segments import query_segments
 
@@ -18,6 +17,7 @@ DEFAULT_SEGMENT_SERVER = os.getenv(
 
 
 BITS_PER_BYTE = 8
+MEMORY_LIMIT = 5
 
 
 def _estimate_memory(
@@ -56,7 +56,6 @@ def data_generator(
     segments: List[Tuple[float, float]],
     loader: Loader,
     channels: Sequence[str],
-    memory_limit: float = 5.0,
     chunk_size: Optional[float] = None,
     current_memory: Optional[List[float]] = None,
     retain_order: bool = False,
@@ -81,7 +80,7 @@ def data_generator(
 
         # start submitting futures until we fill
         # up the hole we created in our memory limit
-        while current_memory[0] <= memory_limit and segments:
+        while current_memory[0] <= MEMORY_LIMIT and segments:
             start, stop = segments.pop(0)
             duration = stop - start
 
@@ -89,11 +88,11 @@ def data_generator(
             # chunk will put us over the limit
             if chunk_size is not None:
                 size = min(duration, chunk_size)
-                mem = utils._estimate_memory(len(channels), size)
+                mem = _estimate_memory(len(channels), size)
             else:
-                mem = utils._estimate_memory(len(channels), duration)
+                mem = _estimate_memory(len(channels), duration)
 
-            if (current_memory[0] + mem) > memory_limit:
+            if (current_memory[0] + mem) > MEMORY_LIMIT:
                 segments.insert(0, (start, stop))
                 break
 
@@ -165,7 +164,6 @@ def find_data(
     n_workers: int = 4,
     thread: bool = True,
     segment_url: str = DEFAULT_SEGMENT_SERVER,
-    memory_limit: float = 5.0,
 ) -> Iterator:
 
     """
@@ -239,9 +237,7 @@ def find_data(
             segments,
             loader,
             channels,
-            memory_limit=memory_limit,
             chunk_size=chunk_size,
             current_memory=None,
             retain_order=retain_order,
-            memory_limit=memory_limit,
         )
