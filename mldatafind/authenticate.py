@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+
 from ciecplib.ui import get_cert
 from ciecplib.x509 import check_cert, load_cert, write_cert
 
@@ -28,17 +29,13 @@ def authenticate():
 
     elif Path(path).exists():
         cert = load_cert(path)
-
         try:
             check_cert(cert)
         except RuntimeError:
             cert, key = get_cert(kerberos=True)
             write_cert(path, cert, key)
-
     else:
         cert, key = get_cert(kerberos=True)
-        write_cert(path, cert, key) 
-    
-    return path
+        write_cert(path, cert, key)
 
-authenticate()
+    return path
