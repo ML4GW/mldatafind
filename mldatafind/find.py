@@ -8,7 +8,6 @@ from typing import Iterable, Iterator, List, Optional, Sequence, Tuple
 
 from gwpy.segments import Segment, SegmentList
 
-import mldatafind.utils as utils
 from mldatafind.io import fetch_timeseries, read_timeseries
 from mldatafind.segments import query_segments
 
@@ -16,7 +15,24 @@ DEFAULT_SEGMENT_SERVER = os.getenv(
     "DEFAULT_SEGMENT_SERVER", "https://segments.ligo.org"
 )
 
-MEMORY_LIMIT = 5  # GB
+
+BITS_PER_BYTE = 8
+MEMORY_LIMIT = 5
+
+
+def _estimate_memory(
+    n_channels: int,
+    duration: float,
+    precision: int = 64,
+    sample_rate: float = 16384.0,
+):
+    """
+    Estimate memory consumption of timeseries in GB
+    """
+    n_samples = n_channels * duration * sample_rate
+    num_bytes = n_samples * (precision / BITS_PER_BYTE)
+    num_gb = num_bytes / (1024**3)
+    return num_gb
 
 
 @dataclass(frozen=True)
@@ -72,9 +88,9 @@ def data_generator(
             # chunk will put us over the limit
             if chunk_size is not None:
                 size = min(duration, chunk_size)
-                mem = utils._estimate_memory(len(channels), size)
+                mem = _estimate_memory(len(channels), size)
             else:
-                mem = utils._estimate_memory(len(channels), duration)
+                mem = _estimate_memory(len(channels), duration)
 
             if (current_memory[0] + mem) > MEMORY_LIMIT:
                 segments.insert(0, (start, stop))
