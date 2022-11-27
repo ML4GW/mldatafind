@@ -1,5 +1,4 @@
 import logging
-import os
 from collections import OrderedDict
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, wait
 from dataclasses import dataclass
@@ -7,11 +6,6 @@ from pathlib import Path
 from typing import Iterator, List, Optional, Sequence, Tuple
 
 from mldatafind.io import fetch_timeseries, read_timeseries
-
-DEFAULT_SEGMENT_SERVER = os.getenv(
-    "DEFAULT_SEGMENT_SERVER", "https://segments.ligo.org"
-)
-
 
 BITS_PER_BYTE = 8
 MEMORY_LIMIT = 5
@@ -157,7 +151,6 @@ def find_data(
     array_like: bool = False,
     n_workers: int = 4,
     thread: bool = True,
-    segment_url: str = DEFAULT_SEGMENT_SERVER,
 ) -> Iterator:
 
     """
