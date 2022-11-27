@@ -208,7 +208,7 @@ def fetch_timeseries(
     t0: float,
     tf: float,
     nproc: int = 1,
-    array_like: bool = True,
+    array_like: bool = False,
 ) -> Union[TimeSeriesDict, Tuple[np.ndarray, np.ndarray]]:
     """
     Fetch multiple channel timeseries from nds2 and store TimeSeriesDict,
