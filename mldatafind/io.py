@@ -1,6 +1,6 @@
 import re
 from pathlib import Path
-from typing import Iterable, List, Optional, Union
+from typing import Iterable, List, Optional, Tuple, Union
 
 import numpy as np
 from gwpy.timeseries import TimeSeries, TimeSeriesDict
@@ -136,11 +136,10 @@ def ts_dict_to_array(ts_dict: TimeSeriesDict):
     All channels in TimeSeriesDict are expected
     to have the same sample rate, t0, and length
 
-
     Args:
         ts_dict: TimeSeriesDict
 
-    returns array of channels, array of times
+    Returns array of channels, array of times
     """
 
     _validate_ts_dict(ts_dict)
@@ -159,22 +158,32 @@ def read_timeseries(
     channels: List[str],
     t0: Optional[float] = None,
     tf: Optional[float] = None,
-    array_like: bool = True,
-) -> np.ndarray:
+    array_like: bool = False,
+) -> Union[TimeSeriesDict, Tuple[np.ndarray, np.ndarray]]:
     """
+    Read multiple channel timeseries from hdf5 or gwf
+    files into a TimeSeriesDict, or, if `array_like` is True,
+    a tuple of numpy arrays where the first element is an array
+    of the channels, and the second element is an array of corresponding times.
     Thin wrapper around TimeSeriesDict.read
 
-    Read multiple channel timeseries into an array or TimeSeriesDict.
-
     Args:
-        path: path to h5 file to read
-        datasets: channel name to read
+        path:
+            File path, Iterable of file paths,
+            or directory containing file paths to read
+        channels:
+            Channel names to read
         t0:
+            Start gpstime to read.
+            If not passed will begin reading from earliest found time
         tf:
+            Stop gpstime to read.
+            If not passed will read until latest found time
         array_like:
-            If true return in array like format. Otherwise,
-            return gwpy.TimeSeriesDict
-    Returns array of datasets
+            Return in array like format.
+            Otherwise, return gwpy.TimeSeriesDict
+
+    Returns gwpy.TimeSeriesDict or Tuple of np.ndarrays
     """
 
     # downselect to files containing requested range
@@ -199,13 +208,30 @@ def fetch_timeseries(
     t0: float,
     tf: float,
     nproc: int = 1,
-    array_like: bool = True,
-):
+    array_like: bool = False,
+) -> Union[TimeSeriesDict, Tuple[np.ndarray, np.ndarray]]:
     """
+    Fetch multiple channel timeseries from nds2 and store TimeSeriesDict,
+    or, if `array_lke` is True, a tuple of numpy arrays
+    where the first element is an array of the channel data,
+    and the second element an array of corresponding times.
     Thin wrapper around TimeSeriesDict.get
 
-    Fetch multiple channel timeseries from nds2 and store in
-    array or TimeSeriesDict
+    Args:
+        channels:
+            Channel names to fetch
+        t0:
+            Start gpstime to read.
+            If not passed will begin reading from earliest found time
+        tf:
+            Stop gpstime to read.
+            If not passed will read until latest found time
+        nproc:
+            Number of concurrent processes to use with TimeSeriesDict.get
+        array_like:
+            Return in array like format. Otherwise, return gwpy.TimeSeriesDict
+
+    Returns gwpy.TimeSeriesDict or Tuple of np.ndarrays
     """
     ts_dict = TimeSeriesDict.get(
         channels, start=t0, end=tf, nproc=nproc, verbose=True
@@ -218,49 +244,50 @@ def fetch_timeseries(
     return data, times
 
 
-# TODO: Should we just pass times array
-# instead of t0 + sample_rate
-# for consistency with return value of read_timeseries ?
+def _intify(x: float):
+    return int(x) if int(x) == x else x
+
+
 def write_timeseries(
     write_dir: Path,
-    t0: float,
-    sample_rate: float,
+    times: np.ndarray,
     prefix: str,
     file_format: str = "hdf5",
     **datasets,
-):
+) -> Path:
     """
     Write multi-channel timeseries to specified format (either gwf or h5).
-
-    This function is a thin wrapper around gwpy.TimeSeriesDict.write
+    Thin wrapper around gwpy.TimeSeriesDict.write
 
     Args:
-        write_dir: Directory to store files
-        t0: gps start time of datasets
-        sample_rate: sample rate shared by all datasets
-        prefix: prefix used for file name
+        write_dir:
+            Path to directory to write files
+        times:
+            gpstimes corresponding to datasets
+        prefix:
+            Prefix used for file name
 
     Returns path to output file
     """
 
     if file_format not in ["hdf5", "gwf"]:
         raise ValueError(f"Writing to {format} format is not supported")
+
     # ensure all channels have same length
     n_samples = [len(dataset) for dataset in datasets.values()]
 
     if len(set(n_samples)) != 1:
         raise ValueError("Channels must all be of the same length")
 
-    n_samples = n_samples[0]
+    length = times[-1] - times[0] + times[1] - times[0]
+    t0 = times[0]
 
-    # infer duration in time of datasets
-    length = n_samples / sample_rate
-
-    length = int(length) if int(length) == length else length
-    t0 = int(t0) if int(t0) == t0 else t0
+    t0 = _intify(t0)
+    length = _intify(length)
 
     # package data into TimeSeriesDict
     ts_dict = TimeSeriesDict()
+    sample_rate = 1 / (times[1] - times[0])
     for channel, dataset in datasets.items():
         ts_dict[channel] = TimeSeries(dataset, dt=1 / sample_rate, t0=t0)
 

@@ -23,7 +23,9 @@ def check_file_contents(fname, sample_rate, t0, file_length, **datasets):
             ts.times.value == np.arange(t0, t0 + file_length, 1 / sample_rate)
         ).all()
 
-    data, times = io.read_timeseries(fname, list(datasets.keys()))
+    data, times = io.read_timeseries(
+        fname, list(datasets.keys()), array_like=True
+    )
     assert (times == np.arange(t0, t0 + file_length, 1 / sample_rate)).all()
     for i, (_, value) in enumerate(datasets.items()):
         assert (data[i] == value).all()
@@ -146,6 +148,8 @@ def test_write_timeseries(
 ):
 
     datasets = {}
+    times = np.arange(t0, t0 + file_length, 1 / sample_rate)
+
     for channel_name in channel_names:
         datasets[channel_name] = np.arange(
             0,
@@ -153,7 +157,7 @@ def test_write_timeseries(
         )
 
     fname = io.write_timeseries(
-        write_dir, t0, sample_rate, prefix, file_format, **datasets
+        write_dir, times, prefix, file_format, **datasets
     )
 
     assert fname.name == f"{prefix}-{int(t0)}-{int(file_length)}.hdf5"
@@ -169,7 +173,9 @@ def test_read_timeseries(
 
     # first try reading when passing
     # the write directory
-    data, times = io.read_timeseries(write_dir, channel_names, t0, t0 + 1000)
+    data, times = io.read_timeseries(
+        write_dir, channel_names, t0, t0 + 1000, array_like=True
+    )
 
     assert (times == np.arange(t0, t0 + 1000, 1 / sample_rate)).all()
     assert data.shape == (len(channel_names), sample_rate * 1000)
@@ -178,7 +184,9 @@ def test_read_timeseries(
 
     # now try reading when passing
     # list of files
-    data, times = io.read_timeseries(file_names, channel_names, t0, t0 + 1000)
+    data, times = io.read_timeseries(
+        file_names, channel_names, t0, t0 + 1000, array_like=True
+    )
 
     for i, dataset in enumerate(data):
         assert (dataset == np.arange(0, 1000 * sample_rate) * (i + 1)).all()
@@ -189,7 +197,7 @@ def test_read_timeseries(
     # now try reading when passing
     # single file
     data, times = io.read_timeseries(
-        file_names[0], channel_names, t0, t0 + file_length - 1
+        file_names[0], channel_names, t0, t0 + file_length - 1, array_like=True
     )
 
     for i, dataset in enumerate(data):
