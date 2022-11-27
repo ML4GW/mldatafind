@@ -138,7 +138,7 @@ python-versions = ">=3.7"
 name = "decorator"
 version = "5.1.1"
 description = "Decorators for Humans"
-category = "dev"
+category = "main"
 optional = false
 python-versions = ">=3.5"
 
@@ -191,6 +191,17 @@ python-versions = ">=3.7"
 [package.extras]
 docs = ["furo (>=2022.6.21)", "sphinx (>=5.1.1)", "sphinx-autodoc-typehints (>=1.19.1)"]
 testing = ["covdefaults (>=2.2)", "coverage (>=6.4.2)", "pytest (>=7.1.2)", "pytest-cov (>=3)", "pytest-timeout (>=2.1)"]
+
+[[package]]
+name = "gssapi"
+version = "1.8.2"
+description = "Python GSSAPI Wrapper"
+category = "main"
+optional = false
+python-versions = ">=3.7"
+
+[package.dependencies]
+decorator = "*"
 
 [[package]]
 name = "identify"
@@ -640,6 +651,18 @@ kerberos = ["requests-gssapi (>=1.2.2)"]
 tests = ["pytest (>=2.9.2)", "pytest-cov", "requests-mock (>=1.5.0)"]
 
 [[package]]
+name = "requests-gssapi"
+version = "1.2.3"
+description = "A GSSAPI authentication handler for python-requests"
+category = "main"
+optional = false
+python-versions = "*"
+
+[package.dependencies]
+gssapi = "*"
+requests = ">=1.1.0"
+
+[[package]]
 name = "scipy"
 version = "1.7.3"
 description = "SciPy: Scientific Library for Python"
@@ -673,7 +696,7 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*"
 
 [[package]]
 name = "stack-data"
-version = "0.6.1"
+version = "0.6.2"
 description = "Extract data from python stack frames and tracebacks for informative displays"
 category = "dev"
 optional = false
@@ -764,7 +787,7 @@ python-versions = "*"
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.8,<3.11"
-content-hash = "ef97ff9cccc1a8b6c6a804da11eab2fc6bdd86ad2c116ac222915950a88d3127"
+content-hash = "16125c8204088a0e28cbee1807a870d8d2776e51737bba177d8736a1c3fcc1b6"
 
 [metadata.files]
 appnope = [
@@ -940,6 +963,28 @@ executing = [
 filelock = [
     {file = "filelock-3.8.0-py3-none-any.whl", hash = "sha256:617eb4e5eedc82fc5f47b6d61e4d11cb837c56cb4544e39081099fa17ad109d4"},
     {file = "filelock-3.8.0.tar.gz", hash = "sha256:55447caa666f2198c5b6b13a26d2084d26fa5b115c00d065664b2124680c4edc"},
+]
+gssapi = [
+    {file = "gssapi-1.8.2-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:7c14cf97d61073d8211abfded77066af791356868022acda10224a8212639cf5"},
+    {file = "gssapi-1.8.2-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:a36bc089036196aa03c3c312ea1639677065b3d7e8f37edbba731f61f5e56dd6"},
+    {file = "gssapi-1.8.2-cp310-cp310-win32.whl", hash = "sha256:cdd6bff2cf7f3a5a5a24cddde137b6e117fe53aad81f240dee2e8e383c0b289b"},
+    {file = "gssapi-1.8.2-cp310-cp310-win_amd64.whl", hash = "sha256:f75b094913a1757e5e634b70b03e808cab0eb02c802ec50b760636b23b0aa50c"},
+    {file = "gssapi-1.8.2-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:47d69b1fd3bd0764d7a14500c6cbd8fd08198ee6e1737048a01ad7024d57f67d"},
+    {file = "gssapi-1.8.2-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:67c85758a6b40042509c96bb00d0873a501491453ad5b0da88dbfa9343c8ffea"},
+    {file = "gssapi-1.8.2-cp311-cp311-win32.whl", hash = "sha256:4aaed04439aed8eba525ea44dd7219ecd97d520254320e66ac53d9ae4acb8fe5"},
+    {file = "gssapi-1.8.2-cp311-cp311-win_amd64.whl", hash = "sha256:8b4c1c664635153b0055a08bf30ec1552c8aa064a76f565d7905057500f334b3"},
+    {file = "gssapi-1.8.2-cp37-cp37m-macosx_10_9_x86_64.whl", hash = "sha256:02e0a8f35e1f5b1c0eada646e3da1af3022c25e8df26ded3fd18ee78abb155ea"},
+    {file = "gssapi-1.8.2-cp37-cp37m-win32.whl", hash = "sha256:84bfd1b3954a5a608302884a36586eed6f623f6f38fcd331ad55937eca1ea89f"},
+    {file = "gssapi-1.8.2-cp37-cp37m-win_amd64.whl", hash = "sha256:85e7e623dfe51fef3f613acb965c4fa1866e7a7ee2c2558cbe2f203798171510"},
+    {file = "gssapi-1.8.2-cp38-cp38-macosx_10_9_x86_64.whl", hash = "sha256:512a2bd98e8003f48d98908bf54d1ed94c5388764e0a09fdc24cc691422a4162"},
+    {file = "gssapi-1.8.2-cp38-cp38-macosx_11_0_arm64.whl", hash = "sha256:13aba9a947994f5f5f1fb6f425b397a359b191cee2983fa33911cf5e212d6cfb"},
+    {file = "gssapi-1.8.2-cp38-cp38-win32.whl", hash = "sha256:43c8b1acb8efa1f881ff7f7e912ccdc611689484190b7cc83f538b44f8992cbd"},
+    {file = "gssapi-1.8.2-cp38-cp38-win_amd64.whl", hash = "sha256:787262e0db124d302c972d30e6f4b7c81423e696d08ee6e07047194a9bce2664"},
+    {file = "gssapi-1.8.2-cp39-cp39-macosx_10_9_x86_64.whl", hash = "sha256:d6be1d8e07cc151e217f8a0ccf7c28ca5a1bb0ae00c8512586642c9f876a7298"},
+    {file = "gssapi-1.8.2-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:75763c49b3e18da60e160d76e8ac9a27b0bbd637c6e88513150fbb7158ae15d7"},
+    {file = "gssapi-1.8.2-cp39-cp39-win32.whl", hash = "sha256:dcd2be270bf490b6007eb3734795aaeddf92848f79b69d6a23f6204ccaa9b6c7"},
+    {file = "gssapi-1.8.2-cp39-cp39-win_amd64.whl", hash = "sha256:fac7d1f4b14383bd29d3996cf5f6f23d0dc50ffd7965d2bc35bcc0849da24152"},
+    {file = "gssapi-1.8.2.tar.gz", hash = "sha256:b78e0a021cc91158660e4c5cc9263e07c719346c35a9c0f66725e914b235c89a"},
 ]
 identify = [
     {file = "identify-2.5.9-py2.py3-none-any.whl", hash = "sha256:a390fb696e164dbddb047a0db26e57972ae52fbd037ae68797e5ae2f4492485d"},
@@ -1301,6 +1346,9 @@ requests-ecp = [
     {file = "requests-ecp-0.3.0.tar.gz", hash = "sha256:f863c3ba717a7733dbb7662ddbdb8e53a12e971eb6594dc009b7f7bc662befdb"},
     {file = "requests_ecp-0.3.0-py3-none-any.whl", hash = "sha256:78cb9f0ad32a9973cc367d4096bd50f0059da425efe0ece8b67c0fa717a0fb6b"},
 ]
+requests-gssapi = [
+    {file = "requests-gssapi-1.2.3.tar.gz", hash = "sha256:20784508981401f7153c933eed095338933a40818da65a259dbf2d80dccb150e"},
+]
 scipy = [
     {file = "scipy-1.7.3-1-cp310-cp310-macosx_12_0_arm64.whl", hash = "sha256:c9e04d7e9b03a8a6ac2045f7c5ef741be86727d8f49c45db45f244bdd2bcff17"},
     {file = "scipy-1.7.3-1-cp38-cp38-macosx_12_0_arm64.whl", hash = "sha256:b0e0aeb061a1d7dcd2ed59ea57ee56c9b23dd60100825f98238c06ee5cc4467e"},
@@ -1341,8 +1389,8 @@ six = [
     {file = "six-1.16.0.tar.gz", hash = "sha256:1e61c37477a1626458e36f7b1d82aa5c9b094fa4802892072e49de9c60c4c926"},
 ]
 stack-data = [
-    {file = "stack_data-0.6.1-py3-none-any.whl", hash = "sha256:960cb054d6a1b2fdd9cbd529e365b3c163e8dabf1272e02cfe36b58403cff5c6"},
-    {file = "stack_data-0.6.1.tar.gz", hash = "sha256:6c9a10eb5f342415fe085db551d673955611afb821551f554d91772415464315"},
+    {file = "stack_data-0.6.2-py3-none-any.whl", hash = "sha256:cbb2a53eb64e5785878201a97ed7c7b94883f48b87bfb0bbe8b623c74679e4a8"},
+    {file = "stack_data-0.6.2.tar.gz", hash = "sha256:32d2dd0376772d01b6cb9fc996f3c8b57a357089dec328ed4b6553d037eaf815"},
 ]
 toml = [
     {file = "toml-0.10.2-py2.py3-none-any.whl", hash = "sha256:806143ae5bfb6a3c6e736a764057db0e6a0e05e338b5630894a5f779cabb4f9b"},
