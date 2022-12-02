@@ -196,7 +196,6 @@ def read_timeseries(
     ts_dict = TimeSeriesDict.read(paths, channels, start=t0, end=tf)
 
     if not array_like:
-        _validate_ts_dict(ts_dict)
         return ts_dict
 
     data, times = ts_dict_to_array(ts_dict)
@@ -237,7 +236,6 @@ def fetch_timeseries(
         channels, start=t0, end=tf, nproc=nproc, verbose=True
     )
     if not array_like:
-        _validate_ts_dict(ts_dict)
         return ts_dict
 
     data, times = ts_dict_to_array(ts_dict)
