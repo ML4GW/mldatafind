@@ -57,19 +57,21 @@ def filter_and_sort_files(
             # if this is not a directory
             # this is a single path to a file;
             # add it to a list and move on
-            fname_it = [fname_path]
+            path_it = fnames = [fname_path]
         else:
             # if we passed a single string or path,
             # that is a directory, asume this refers
             # to directory containing files we're meant
-            # to sort
-            fname_it = fname_path.iterdir()
+            # to sort. Do this twice because setting them
+            # equal to the same generator weaves between them
+            path_it = fname_path.iterdir()
+            fnames = fname_path.iterdir()
     else:
         # otherwise make sure the iterable contains either
         # _all_ Paths or _all_ strings. If all paths, normalize
         # them to just include the terminal filename
         if all([isinstance(i, Path) for i in fnames]):
-            fname_it = fnames
+            path_it = fnames
         elif not all([isinstance(i, str) for i in fnames]):
             raise ValueError(
                 "'fnames' must either be a path to a directory "
@@ -78,12 +80,11 @@ def filter_and_sort_files(
                 + ", ".join([type(i) for i in fnames])
             )
         else:
-            fname_it = map(Path, fnames)
+            path_it = map(Path, fnames)
 
-    matches = map(fname_re.search, fname_it)
     tups = []
-    for fname in fname_it:
-        match = fname_re.search(fname.name)
+    for path, fname in zip(path_it, fnames):
+        match = fname_re.search(path.name)
         if match is None:
             continue
 
