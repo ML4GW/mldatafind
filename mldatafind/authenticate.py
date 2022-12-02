@@ -19,23 +19,32 @@ def authenticate():
     If generating new credential, a kerberos keytab is required
     for passwordless authentication. It's location should be
     specified in the environment variable `KRB5_KTNAME`.
-    This function assumes the user has already generated a kerberos keytab.
+    This function assumes the user has already generated a kerberos keytab
+    with principal user.name@LIGO.ORG. This function will read in username
+    from the environment variable `LIGO_USERNAME`
 
     For instructions on generating a kerberos keytab,
     see https://computing.docs.ligo.org/guide/auth/kerberos/
 
     """
 
-    user = os.environ.get("USER")
-    kinit_command = shutil.which("kinit")
-
-    if kinit_command is None:
-        raise ValueError("kinit command not found")
+    user = os.environ.get("LIGO_USERNAME")
+    if user is None:
+        raise ValueError("LIGO_USERNAME environment variable is not set")
 
     keytab_location = os.getenv("KRB5_KTNAME")
     if keytab_location is None:
         raise ValueError("KRB5_KTNAME environment variable not set")
 
+    path = os.getenv("X509_USER_PROXY")
+    if path is None:
+        raise ValueError("X509_USER_PROXY environment variable not set")
+
+    kinit_command = shutil.which("kinit")
+    if kinit_command is None:
+        raise ValueError("kinit command not found")
+
+    kinit_command = shutil.which("kinit")
     args = [
         kinit_command,
         "-p",
