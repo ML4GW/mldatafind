@@ -1,4 +1,6 @@
 import os
+import shutil
+import subprocess
 from pathlib import Path
 
 from ciecplib.ui import get_cert
@@ -14,18 +16,40 @@ def authenticate():
     it will create a new one. If the credential exists and is valid,
     it will continue to use it. Otherwise, it will generate a new credential.
 
-    This function assumes the user has already made kerberos credentials.
+    If generating new credential, a kerberos keytab is required
+    for passwordless authentication. It's location should be
+    specified in the environment variable `KRB5_KTNAME`.
+    This function assumes the user has already generated a kerberos keytab.
 
-    To generate kerberos credentials, run
-
-    ```kinit albert.einstein@LIGO.ORG```
+    For instructions on generating a kerberos keytab,
+    see https://computing.docs.ligo.org/guide/auth/kerberos/
 
     """
+
+    user = os.environ.get("USER")
+    kinit_command = shutil.which("kinit")
+
+    if kinit_command is None:
+        raise ValueError("kinit command not found")
+
+    keytab_location = os.getenv("KRB5_KTNAME")
+    if keytab_location is None:
+        raise ValueError("KRB5_KTNAME environment variable not set")
+
+    args = [
+        kinit_command,
+        "-p",
+        f"{user}@LIGO.ORG",
+        "-k",
+        "-t",
+        keytab_location,
+    ]
+    subprocess.run(args, check=True)
 
     path = os.getenv("X509_USER_PROXY")
 
     if path is None:
-        raise ValueError("Set X509_USER_PROXY environment variable")
+        raise ValueError("X509_USER_PROXY environment variable not set")
 
     elif Path(path).exists():
         cert = load_cert(path)
