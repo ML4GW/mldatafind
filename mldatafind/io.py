@@ -57,21 +57,21 @@ def filter_and_sort_files(
             # if this is not a directory
             # this is a single path to a file;
             # add it to a list and move on
-            fnames = [fname_path]
-            fname_it = [fname_path.name]
+            path_it = fnames = [fname_path]
         else:
             # if we passed a single string or path,
             # that is a directory, asume this refers
             # to directory containing files we're meant
-            # to sort
-            fnames = list(fname_path.iterdir())
-            fname_it = [f.name for f in fnames]
+            # to sort. Do this twice because setting them
+            # equal to the same generator weaves between them
+            path_it = fname_path.iterdir()
+            fnames = fname_path.iterdir()
     else:
         # otherwise make sure the iterable contains either
         # _all_ Paths or _all_ strings. If all paths, normalize
         # them to just include the terminal filename
         if all([isinstance(i, Path) for i in fnames]):
-            fname_it = [f.name for f in fnames]
+            path_it = fnames
         elif not all([isinstance(i, str) for i in fnames]):
             raise ValueError(
                 "'fnames' must either be a path to a directory "
@@ -80,34 +80,20 @@ def filter_and_sort_files(
                 + ", ".join([type(i) for i in fnames])
             )
         else:
-            fname_it = [Path(f).name for f in fnames]
+            path_it = map(Path, fnames)
 
-    fnames = np.array(fnames)
-    matches = np.array(list(map(fname_re.search, fname_it)))
+    tups = []
+    for path, fname in zip(path_it, fnames):
+        match = fname_re.search(path.name)
+        if match is None:
+            continue
 
-    # downselect to paths that contain requested data
-    mask = np.ones(len(matches), dtype=bool)
-
-    if tf is not None:
-        mask &= np.array([float(match.group("t0")) < tf for match in matches])
-
-    if t0 is not None:
-        stops = np.array(
-            [
-                float(match.group("length")) + float(match.group("t0"))
-                for match in matches
-            ]
-        )
-        mask &= stops > t0
-
-    matches = matches[mask]
-    fnames = fnames[mask]
-
-    # use the timestamps from all valid timestamped filenames
-    # to sort the files as the first index in a tuple
-    tups = [
-        (m.group("t0"), f, m) for m, f in zip(matches, fnames) if m is not None
-    ]
+        t, length = float(match.group("t0")), float(match.group("length"))
+        if tf is not None and t >= tf:
+            continue
+        elif t0 is not None and (t + length) < t0:
+            continue
+        tups.append((t, fname, match))
 
     # if return_matches is True, return the match object,
     # otherwise just return the raw filename
