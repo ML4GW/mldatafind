@@ -7,6 +7,24 @@ from ciecplib.ui import get_cert
 from ciecplib.x509 import check_cert, load_cert, write_cert
 
 
+def _validate_env(env_var: str):
+    """
+    Validate the existence of an environment variable
+    Args:
+        env_var : str
+            The name of the environment variable
+    Raises:
+        ValueError If the environment variable is not set
+
+    Returns The value of the environment variable
+    """
+    value = os.getenv(env_var)
+    if value is None:
+        raise ValueError(f"{env_var} environment variable not set")
+
+    return value
+
+
 def authenticate():
     """
     Authenticate a user to access LIGO data sources
@@ -28,23 +46,14 @@ def authenticate():
 
     """
 
-    user = os.environ.get("LIGO_USERNAME")
-    if user is None:
-        raise ValueError("LIGO_USERNAME environment variable is not set")
-
-    keytab_location = os.getenv("KRB5_KTNAME")
-    if keytab_location is None:
-        raise ValueError("KRB5_KTNAME environment variable not set")
-
-    path = os.getenv("X509_USER_PROXY")
-    if path is None:
-        raise ValueError("X509_USER_PROXY environment variable not set")
+    user = _validate_env("LIGO_USERNAME")
+    keytab_location = _validate_env("KRB5_KTNAME")
+    path = _validate_env("X509_USER_PROXY")
 
     kinit_command = shutil.which("kinit")
     if kinit_command is None:
         raise ValueError("kinit command not found")
 
-    kinit_command = shutil.which("kinit")
     args = [
         kinit_command,
         "-p",
