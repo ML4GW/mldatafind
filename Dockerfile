@@ -2,27 +2,17 @@ FROM continuumio/miniconda3:4.12.0
 
 # set up some conda stuff
 SHELL ["/bin/bash", "-c"]
-ENV CONDA_INIT=$CONDA_PREFIX/etc/profile.d/conda.sh
+ENV CONDA_INIT=$CONDA_PREFIX/etc/profile.d/conda.sh \
+    DEBIAN_FRONTEND=noninteractive
 
-# install kinit utility
+# install kerberos executables
 RUN apt-get update \
         \
+        && printf '[libdefaults]\n  default_realm = LIGO.ORG\n' > /etc/krb5.confg \
+        \
         && apt-get install -y --no-install-recommends \
-            wget \
+            krb5-user \
             build-essential \
-            bison \
-        \
-        && wget http://web.mit.edu/kerberos/dist/krb5/1.20/krb5-1.20.1.tar.gz \
-        \
-        && tar -xzf krb5-1.20.1.tar.gz \
-        \
-        && cd krb5-1.20.1/src \
-        \
-        && ./configure \
-        \
-        && make \
-        \
-        && make install \
         \
         && rm -rf /var/lib/apt/lists/*
 

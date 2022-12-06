@@ -1,7 +1,8 @@
 from typing import Iterable
 
-import numpy as np
 from gwpy.segments import DataQualityDict, SegmentList
+
+from mldatafind.authenticate import authenticate
 
 
 def query_segments(
@@ -31,22 +32,29 @@ def query_segments(
             f"requested analysis interval ({length} s)"
         )
 
-    segments = DataQualityDict.query_dqsegdb(
-        segment_names,
-        t0,
-        tf,
-        **kwargs,
-    )
+    try:
+        segments = DataQualityDict.query_dqsegdb(
+            segment_names,
+            t0,
+            tf,
+            **kwargs,
+        )
+    except OSError as e:
+        if not str(e).startswith("Could not find the TLS certificate file"):
+            # TODO: what's the error for an expired certificate?
+            raise
 
-    segments = np.array(segments.intersection().active.copy())
+        # try to authenticate then re-query
+        authenticate()
+        segments = DataQualityDict.query_dqsegdb(
+            segment_names,
+            t0,
+            tf,
+            **kwargs,
+        )
 
-    # if min duration is passed, restrict to those segments
-    mask = np.ones(len(segments), dtype=bool)
-
+    segments = segments.intersection().active
     if min_duration is not None:
-        durations = np.array([float(seg[1] - seg[0]) for seg in segments])
-        mask &= durations > min_duration
-
-    segments = segments[mask]
-
+        segments = filter(lambda i: i[1] - i[0] >= min_duration, segments)
+        segments = SegmentList(segments)
     return segments
