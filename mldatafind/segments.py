@@ -54,7 +54,7 @@ def query_segments(
         )
 
     segments = segments.intersection().active
-    if min_duration is not None:
+    if min_duration > 0:
         segments = filter(lambda i: i[1] - i[0] >= min_duration, segments)
         segments = SegmentList(segments)
     return segments
