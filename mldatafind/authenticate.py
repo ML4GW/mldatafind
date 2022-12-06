@@ -73,7 +73,15 @@ def kinit():
 
     response = subprocess.run(args, capture_output=True, text=True)
     if response.returncode:
+        # first check to see if we recognize any of the issues
         _check_kinit_errs(response.stderr, user, keytab_location)
+
+        # if not, raise a generic error with kinit's full stderr
+        raise RuntimeError(
+            "kinit command failed with return code {}: {}".format(
+                response.returncode, response.stderr
+            )
+        )
 
 
 def make_cert(cert_path: str) -> None:
