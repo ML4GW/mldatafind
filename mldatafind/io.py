@@ -145,6 +145,7 @@ def read_timeseries(
     t0: Optional[float] = None,
     tf: Optional[float] = None,
     array_like: bool = False,
+    strict: bool = False,
     **kwargs,
 ) -> Union[TimeSeriesDict, Tuple[np.ndarray, np.ndarray]]:
     """
@@ -177,7 +178,8 @@ def read_timeseries(
     # downselect to files containing requested range,
     # following the file naming convention {prefix}-{start}-{duration}
     # if none exist, try to read anyway
-    paths = filter_and_sort_files(path, t0, tf) or path
+    filtered = filter_and_sort_files(path, t0, tf)
+    paths = filtered if strict else filtered or path
 
     # this call will raise error if
     # channel doesn't exist,
