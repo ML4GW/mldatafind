@@ -145,6 +145,7 @@ def read_timeseries(
     t0: Optional[float] = None,
     tf: Optional[float] = None,
     array_like: bool = False,
+    **kwargs,
 ) -> Union[TimeSeriesDict, Tuple[np.ndarray, np.ndarray]]:
     """
     Read multiple channel timeseries from hdf5 or gwf
@@ -168,18 +169,21 @@ def read_timeseries(
         array_like:
             Return in array like format.
             Otherwise, return gwpy.TimeSeriesDict
-
+        **kwargs
+            Additional kwargs to be passed to TimeSeriesDict.read
     Returns gwpy.TimeSeriesDict or Tuple of np.ndarrays
     """
 
-    # downselect to files containing requested range
-    paths = filter_and_sort_files(path, t0, tf)
+    # downselect to files containing requested range,
+    # following the file naming convention {prefix}-{start}-{duration}
+    # if none exist, try to read anyway
+    paths = filter_and_sort_files(path, t0, tf) or path
 
     # this call will raise error if
     # channel doesn't exist,
     # if any channel doesnt contain
     # data from t0 to tf, or if gaps exist
-    ts_dict = TimeSeriesDict.read(paths, channels, start=t0, end=tf)
+    ts_dict = TimeSeriesDict.read(paths, channels, start=t0, end=tf, **kwargs)
 
     if not array_like:
         return ts_dict
