@@ -210,4 +210,16 @@ def test_read_timeseries(
     ).all()
     assert data.shape == (len(channel_names), sample_rate * (file_length - 1))
 
+    # test reading file path that doesn't subscribe to
+    # our naming conventions
+    path = write_dir / "timeseries.hdf5"
+    ts_dict = TimeSeriesDict()
+    times = np.arange(t0, t0 + 1000, 1 / sample_rate)
+    for i, channel in enumerate(channel_names):
+        data = np.arange(len(times)) * i
+        ts_dict[channel] = TimeSeries(data=data, times=times)
+    ts_dict.write(path)
+
+    data, times = io.read_timeseries(path, channel_names, array_like=True)
+
     # TODO: test when array_like is False
