@@ -18,11 +18,14 @@ fname_re = re.compile(
     ".(?P<suffix>gwf|hdf5|h5)$"
 )
 
+# channel names that signal to fetch open data
+OPEN_DATA_CHANNELS = ["H1", "L1", "V1"]
+
 
 def filter_and_sort_files(
     fnames: MAYBE_PATHS,
-    t0: Optional[float] = None,
-    tf: Optional[float] = None,
+    start: Optional[float] = None,
+    end: Optional[float] = None,
     return_matches: bool = False,
 ) -> List[PATH_LIKE]:
     """Sort data files by their timestamps
@@ -41,9 +44,9 @@ def filter_and_sort_files(
         fnames:
             Path to directory containing files,
             or iterable of paths to sort
-        t0:
+        start:
             return files that contain data greater than this gpstime
-        tf:
+        end:
             return files that contain data less than this gpstime
         return_matches:
             If true return the match objects, otherwise return file names
@@ -89,9 +92,9 @@ def filter_and_sort_files(
             continue
 
         t, length = float(match.group("t0")), float(match.group("length"))
-        if tf is not None and t >= tf:
+        if end is not None and t >= end:
             continue
-        elif t0 is not None and (t + length) < t0:
+        elif start is not None and (t + length) < start:
             continue
         tups.append((t, fname, match))
 
@@ -142,8 +145,8 @@ def ts_dict_to_array(ts_dict: TimeSeriesDict):
 def read_timeseries(
     path: MAYBE_PATHS,
     channels: List[str],
-    t0: Optional[float] = None,
-    tf: Optional[float] = None,
+    start: Optional[float] = None,
+    end: Optional[float] = None,
     array_like: bool = False,
 ) -> Union[TimeSeriesDict, Tuple[np.ndarray, np.ndarray]]:
     """
@@ -159,10 +162,10 @@ def read_timeseries(
             or directory containing file paths to read
         channels:
             Channel names to read
-        t0:
+        start:
             Start gpstime to read.
             If not passed will begin reading from earliest found time
-        tf:
+        end:
             Stop gpstime to read.
             If not passed will read until latest found time
         array_like:
@@ -173,13 +176,13 @@ def read_timeseries(
     """
 
     # downselect to files containing requested range
-    paths = filter_and_sort_files(path, t0, tf)
+    paths = filter_and_sort_files(path, start, end)
 
     # this call will raise error if
     # channel doesn't exist,
     # if any channel doesnt contain
     # data from t0 to tf, or if gaps exist
-    ts_dict = TimeSeriesDict.read(paths, channels, start=t0, end=tf)
+    ts_dict = TimeSeriesDict.read(paths, channels, start=start, end=end)
 
     if not array_like:
         return ts_dict
@@ -188,27 +191,37 @@ def read_timeseries(
     return data, times
 
 
+def _fetch_open_data(ifos: List[str], t0: float, tf: float) -> TimeSeriesDict:
+    ts_dict = TimeSeriesDict()
+    for ifo in ifos:
+        TimeSeriesDict[ifo] = TimeSeries.fetch_open_data(ifo, t0, tf)
+    return ts_dict
+
+
 def fetch_timeseries(
     channels: List[str],
-    t0: float,
-    tf: float,
+    start: float,
+    end: float,
     nproc: int = 1,
     array_like: bool = False,
 ) -> Union[TimeSeriesDict, Tuple[np.ndarray, np.ndarray]]:
     """
-    Fetch multiple channel timeseries from nds2 and store TimeSeriesDict,
+    Fetch multiple channel timeseries from nds2 and store in a TimeSeriesDict,
     or, if `array_lke` is True, a tuple of numpy arrays
     where the first element is an array of the channel data,
-    and the second element an array of corresponding times.
+    and the second element an array of corresponding times. If a channel name
+    is an interferometer name (e.g. `H1`), open data channels will be fetched.
+
     Thin wrapper around TimeSeriesDict.get
 
     Args:
         channels:
-            Channel names to fetch
-        t0:
+            List of channel names to fetch. If an interferometer
+            name is passed, (e.g. `H1`), open data channels will be fetched.
+        start:
             Start gpstime to read.
             If not passed will begin reading from earliest found time
-        tf:
+        end:
             Stop gpstime to read.
             If not passed will read until latest found time
         nproc:
@@ -218,9 +231,25 @@ def fetch_timeseries(
 
     Returns gwpy.TimeSeriesDict or Tuple of np.ndarrays
     """
+
+    # Channels that are interferometer names should query open data
+    open_data_channels = []
+    for i, chan in enumerate(channels):
+        if chan in OPEN_DATA_CHANNELS:
+            open_data_channels.append(channels.pop(i))
+
+    # fetch data from nds2
     ts_dict = TimeSeriesDict.get(
-        channels, start=t0, end=tf, nproc=nproc, verbose=True
+        channels, start=start, end=end, nproc=nproc, verbose=True
     )
+
+    if open_data_channels:
+        # fetch open data channels and combine
+        open_data_ts_dict = _fetch_open_data(
+            open_data_channels, start=start, end=end, nproc=nproc, verbose=True
+        )
+        ts_dict.append(open_data_ts_dict)
+
     if not array_like:
         return ts_dict
 
