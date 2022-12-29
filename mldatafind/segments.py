@@ -47,10 +47,8 @@ def query_segments(
         )
 
     # split open data flags from private flags
-    open_data_flags = []
-    for i, flag in enumerate(flags):
-        if flag in OPEN_DATA_FLAGS:
-            open_data_flags.append(flags.pop(i))
+    open_data_flags = list(filter(lambda x: x in OPEN_DATA_FLAGS, flags))
+    flags = list(filter(lambda x: x not in OPEN_DATA_FLAGS, flags))
 
     try:
         segments = DataQualityDict.query_dqsegdb(

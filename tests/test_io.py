@@ -216,7 +216,7 @@ def test_read_timeseries(
 
 def test_fetch_timeseries():
     CHANNELS = ["H1:STRAIN", "L1:STRAIN"]
-    OPEN_CHANNELS = ["V1"]
+    OPEN_CHANNELS = ["V1", "H1"]
 
     ts = TimeSeries([0, 1], times=[0, 1])
     ts_dict = TimeSeriesDict({channel: ts for channel in CHANNELS})

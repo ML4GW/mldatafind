@@ -243,11 +243,10 @@ def fetch_timeseries(
     Returns gwpy.TimeSeriesDict or Tuple of np.ndarrays
     """
 
-    # Channels that are interferometer names should query open data
-    open_data_channels = []
-    for i, chan in enumerate(channels):
-        if chan in OPEN_DATA_CHANNELS:
-            open_data_channels.append(channels.pop(i))
+    open_data_channels = list(
+        filter(lambda x: x in OPEN_DATA_CHANNELS, channels)
+    )
+    channels = list(filter(lambda x: x not in OPEN_DATA_CHANNELS, channels))
 
     # fetch data from nds2
     ts_dict = TimeSeriesDict.get(
