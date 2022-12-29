@@ -148,6 +148,7 @@ def read_timeseries(
     start: Optional[float] = None,
     end: Optional[float] = None,
     array_like: bool = False,
+    **kwargs,
 ) -> Union[TimeSeriesDict, Tuple[np.ndarray, np.ndarray]]:
     """
     Read multiple channel timeseries from hdf5 or gwf
@@ -171,6 +172,8 @@ def read_timeseries(
         array_like:
             Return in array like format.
             Otherwise, return gwpy.TimeSeriesDict
+        **kwargs:
+            key word arguments passed to TimeSeriesDict.read
 
     Returns gwpy.TimeSeriesDict or Tuple of np.ndarrays
     """
@@ -182,7 +185,9 @@ def read_timeseries(
     # channel doesn't exist,
     # if any channel doesnt contain
     # data from t0 to tf, or if gaps exist
-    ts_dict = TimeSeriesDict.read(paths, channels, start=start, end=end)
+    ts_dict = TimeSeriesDict.read(
+        paths, channels, start=start, end=end, **kwargs
+    )
 
     if not array_like:
         return ts_dict
@@ -191,10 +196,14 @@ def read_timeseries(
     return data, times
 
 
-def _fetch_open_data(ifos: List[str], t0: float, tf: float) -> TimeSeriesDict:
+def _fetch_open_data(
+    ifos: List[str], start: float, end: float, verbose: bool, **kwargs
+) -> TimeSeriesDict:
     ts_dict = TimeSeriesDict()
     for ifo in ifos:
-        TimeSeriesDict[ifo] = TimeSeries.fetch_open_data(ifo, t0, tf)
+        ts_dict[ifo] = TimeSeries.fetch_open_data(
+            ifo, start, end, verbose=verbose, **kwargs
+        )
     return ts_dict
 
 
@@ -202,8 +211,9 @@ def fetch_timeseries(
     channels: List[str],
     start: float,
     end: float,
-    nproc: int = 1,
     array_like: bool = False,
+    verbose: bool = False,
+    **kwargs,
 ) -> Union[TimeSeriesDict, Tuple[np.ndarray, np.ndarray]]:
     """
     Fetch multiple channel timeseries from nds2 and store in a TimeSeriesDict,
@@ -224,10 +234,11 @@ def fetch_timeseries(
         end:
             Stop gpstime to read.
             If not passed will read until latest found time
-        nproc:
-            Number of concurrent processes to use with TimeSeriesDict.get
         array_like:
             Return in array like format. Otherwise, return gwpy.TimeSeriesDict
+        **kwargs:
+            key word arguments to pass to
+            TimeSeriesDict.get or TimeSeries.fetch_open_data
 
     Returns gwpy.TimeSeriesDict or Tuple of np.ndarrays
     """
@@ -240,13 +251,21 @@ def fetch_timeseries(
 
     # fetch data from nds2
     ts_dict = TimeSeriesDict.get(
-        channels, start=start, end=end, nproc=nproc, verbose=True
+        channels,
+        start=start,
+        end=end,
+        verbose=verbose,
+        **kwargs,
     )
 
     # fetch open data channels and combine
     if open_data_channels:
         open_data_ts_dict = _fetch_open_data(
-            open_data_channels, start=start, end=end, nproc=nproc, verbose=True
+            open_data_channels,
+            start=start,
+            end=end,
+            verbose=verbose,
+            **kwargs,
         )
         ts_dict.update(open_data_ts_dict)
 
