@@ -243,12 +243,12 @@ def fetch_timeseries(
         channels, start=start, end=end, nproc=nproc, verbose=True
     )
 
+    # fetch open data channels and combine
     if open_data_channels:
-        # fetch open data channels and combine
         open_data_ts_dict = _fetch_open_data(
             open_data_channels, start=start, end=end, nproc=nproc, verbose=True
         )
-        ts_dict.append(open_data_ts_dict)
+        ts_dict.update(open_data_ts_dict)
 
     if not array_like:
         return ts_dict

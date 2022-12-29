@@ -1,14 +1,28 @@
 from typing import Iterable
 
-from gwpy.segments import DataQualityDict, SegmentList
+from gwpy.segments import DataQualityDict, DataQualityFlag, SegmentList
 
 from mldatafind.authenticate import authenticate
 
+# TODO: Not exactly sure what these flags
+OPEN_DATA_FLAGS = ["H1_DATA", "L1_DATA", "V1_DATA"]
+
+
+def _fetch_open_data(
+    flags: Iterable[str], start: float, end: float, **kwargs
+) -> DataQualityDict:
+    dqdict = DataQualityDict()
+    for flag in flags:
+        dqdict[flag] = DataQualityFlag.fetch_open_data(
+            flag, start, end, **kwargs
+        )
+    return dqdict
+
 
 def query_segments(
-    segment_names: Iterable[str],
-    t0: float,
-    tf: float,
+    flags: Iterable[str],
+    start: float,
+    end: float,
     min_duration: float = 0,
     **kwargs,
 ) -> SegmentList:
@@ -18,25 +32,31 @@ def query_segments(
 
     Args:
         segment_names: Iterable of segment names to query
-        t0: Start time of segments
-        tf: Stop time of segments
+        start: Start time of segments
+        end: End time of segments
         min_duration: Minimum length of intersected segments
         **kwargs: Keyword arguments to DataQualityDict.query_dqsegdb
     Returns SegmentList
     """
 
-    length = tf - t0
+    length = end - start
     if min_duration > length:
         raise ValueError(
             f"Minimum duration ({min_duration} s) is longer than "
             f"requested analysis interval ({length} s)"
         )
 
+    # split open data flags from private flags
+    open_data_flags = []
+    for i, flag in enumerate(flags):
+        if flag in OPEN_DATA_FLAGS:
+            open_data_flags.append(flags.pop(i))
+
     try:
         segments = DataQualityDict.query_dqsegdb(
-            segment_names,
-            t0,
-            tf,
+            flags,
+            start,
+            end,
             **kwargs,
         )
     except OSError as e:
@@ -47,11 +67,19 @@ def query_segments(
         # try to authenticate then re-query
         authenticate()
         segments = DataQualityDict.query_dqsegdb(
-            segment_names,
-            t0,
-            tf,
+            flags,
+            start,
+            end,
             **kwargs,
         )
+
+    # if open data flags are requested,
+    # query them and combine with private flags
+    if open_data_flags:
+        open_data_segments = _fetch_open_data(
+            open_data_flags, start, end, **kwargs
+        )
+        segments.update(open_data_segments)
 
     segments = segments.intersection().active
     if min_duration > 0:
