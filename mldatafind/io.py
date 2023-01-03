@@ -249,13 +249,15 @@ def fetch_timeseries(
     channels = list(filter(lambda x: x not in OPEN_DATA_CHANNELS, channels))
 
     # fetch data from nds2
-    ts_dict = TimeSeriesDict.get(
-        channels,
-        start=start,
-        end=end,
-        verbose=verbose,
-        **kwargs,
-    )
+    ts_dict = TimeSeriesDict()
+    if channels:
+        ts_dict = TimeSeriesDict.get(
+            channels,
+            start=start,
+            end=end,
+            verbose=verbose,
+            **kwargs,
+        )
 
     # fetch open data channels and combine
     if open_data_channels:
@@ -268,6 +270,7 @@ def fetch_timeseries(
         )
         ts_dict.update(open_data_ts_dict)
 
+    print(ts_dict)
     if not array_like:
         return ts_dict
 

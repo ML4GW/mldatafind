@@ -220,24 +220,41 @@ def test_fetch_timeseries():
 
     ts = TimeSeries([0, 1], times=[0, 1])
     ts_dict = TimeSeriesDict({channel: ts for channel in CHANNELS})
+    mock_get = patch("mldatafind.io.TimeSeriesDict.get", return_value=ts_dict)
+    mock_fetch_open = patch(
+        "mldatafind.io.TimeSeries.fetch_open_data", return_value=ts
+    )
 
-    with patch(
-        "mldatafind.io.TimeSeriesDict.get", return_value=ts_dict
-    ) as mock_get:
+    # test only passing nds2 channels
+    with mock_get as mock_get, mock_fetch_open as mock_fetch_open:
         output = io.fetch_timeseries(CHANNELS, 0, 1)
         assert list(output.keys()) == CHANNELS
+        get_call = call(CHANNELS, start=0, end=1, verbose=False)
+        mock_get.assert_has_calls([get_call])
+        mock_fetch_open.assert_not_called()
 
-        with patch(
-            "mldatafind.io.TimeSeries.fetch_open_data", return_value=ts
-        ) as mock_fetch_open_data:
-            output = io.fetch_timeseries(CHANNELS + OPEN_CHANNELS, 0, 1)
-            assert list(output.keys()) == CHANNELS + OPEN_CHANNELS
+        # reset mocks
+        mock_get.reset_mock()
+        mock_fetch_open.reset_mock()
 
-            get_call = call(CHANNELS, start=0, end=1, verbose=False)
-            mock_get.assert_has_calls([get_call])
-            mock_fetch_open_data.assert_has_calls(
-                [
-                    call(channel, 0, 1, verbose=False)
-                    for channel in OPEN_CHANNELS
-                ]
-            )
+        # test only passing open channels
+        output = io.fetch_timeseries(OPEN_CHANNELS, 0, 1)
+        assert list(output.keys()) == OPEN_CHANNELS
+        mock_get.assert_not_called()
+        mock_fetch_open.assert_has_calls(
+            [call(channel, 0, 1, verbose=False) for channel in OPEN_CHANNELS]
+        )
+
+        # reset mocks
+        mock_get.reset_mock()
+        mock_fetch_open.reset_mock()
+
+        # test passing both nds2 and open channels
+        output = io.fetch_timeseries(CHANNELS + OPEN_CHANNELS, 0, 1)
+        assert list(output.keys()) == CHANNELS + OPEN_CHANNELS
+
+        get_call = call(CHANNELS, start=0, end=1, verbose=False)
+        mock_get.assert_has_calls([get_call])
+        mock_fetch_open.assert_has_calls(
+            [call(channel, 0, 1, verbose=False) for channel in OPEN_CHANNELS]
+        )
