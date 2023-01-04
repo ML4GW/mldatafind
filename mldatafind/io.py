@@ -270,7 +270,6 @@ def fetch_timeseries(
         )
         ts_dict.update(open_data_ts_dict)
 
-    print(ts_dict)
     if not array_like:
         return ts_dict
 
