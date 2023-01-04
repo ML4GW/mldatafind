@@ -1,4 +1,5 @@
 from pathlib import Path
+from unittest.mock import call, patch
 
 import numpy as np
 import pytest
@@ -99,7 +100,7 @@ def test_filter_and_sort_files(
     # now test with t0 and tf
     # such that only expect one file
     result = io.filter_and_sort_files(
-        typed_file_names, t0=t0, tf=t0 + file_length - 1
+        typed_file_names, start=t0, end=t0 + file_length - 1
     )
     assert len(result) == 1
     assert all([isinstance(i, expected_type) for i in result])
@@ -109,7 +110,7 @@ def test_filter_and_sort_files(
     # (only run if number of files greater than 1)
     if n_files > 1:
         result = io.filter_and_sort_files(
-            typed_file_names, t0=t0, tf=t0 + file_length + 1
+            typed_file_names, start=t0, end=t0 + file_length + 1
         )
         assert len(result) == 2
         assert all([isinstance(i, expected_type) for i in result])
@@ -118,7 +119,7 @@ def test_filter_and_sort_files(
     # such that all files should be returned
     result = io.filter_and_sort_files(
         typed_file_names,
-        t0=t0 - 1,
+        start=t0 - 1,
     )
     print(result, expected_names)
     assert len(result) == n_files
@@ -128,13 +129,13 @@ def test_filter_and_sort_files(
     # now test with tf greater than
     # end of files such that all files should be returned
     tf = t0 + 1 + (n_files * file_length)
-    result = io.filter_and_sort_files(typed_file_names, tf=tf)
+    result = io.filter_and_sort_files(typed_file_names, end=tf)
     assert len(result) == n_files
 
     # now test with t0 greater than
     # end of files such that all files should be returned
     tf = t0 + 1 + (n_files * file_length)
-    result = io.filter_and_sort_files(typed_file_names, t0=tf)
+    result = io.filter_and_sort_files(typed_file_names, start=tf)
     assert len(result) == 0
 
     expected_names = [Path(i).name for i in expected_names]
@@ -211,3 +212,49 @@ def test_read_timeseries(
     assert data.shape == (len(channel_names), sample_rate * (file_length - 1))
 
     # TODO: test when array_like is False
+
+
+def test_fetch_timeseries():
+    CHANNELS = ["H1:STRAIN", "L1:STRAIN"]
+    OPEN_CHANNELS = ["V1", "H1"]
+
+    ts = TimeSeries([0, 1], times=[0, 1])
+    ts_dict = TimeSeriesDict({channel: ts for channel in CHANNELS})
+    mock_get = patch("mldatafind.io.TimeSeriesDict.get", return_value=ts_dict)
+    mock_fetch_open = patch(
+        "mldatafind.io.TimeSeries.fetch_open_data", return_value=ts
+    )
+
+    # test only passing nds2 channels
+    with mock_get as mock_get, mock_fetch_open as mock_fetch_open:
+        output = io.fetch_timeseries(CHANNELS, 0, 1)
+        assert list(output.keys()) == CHANNELS
+        get_call = call(CHANNELS, start=0, end=1, verbose=False)
+        mock_get.assert_has_calls([get_call])
+        mock_fetch_open.assert_not_called()
+
+        # reset mocks
+        mock_get.reset_mock()
+        mock_fetch_open.reset_mock()
+
+        # test only passing open channels
+        output = io.fetch_timeseries(OPEN_CHANNELS, 0, 1)
+        assert list(output.keys()) == OPEN_CHANNELS
+        mock_get.assert_not_called()
+        mock_fetch_open.assert_has_calls(
+            [call(channel, 0, 1, verbose=False) for channel in OPEN_CHANNELS]
+        )
+
+        # reset mocks
+        mock_get.reset_mock()
+        mock_fetch_open.reset_mock()
+
+        # test passing both nds2 and open channels
+        output = io.fetch_timeseries(CHANNELS + OPEN_CHANNELS, 0, 1)
+        assert list(output.keys()) == CHANNELS + OPEN_CHANNELS
+
+        get_call = call(CHANNELS, start=0, end=1, verbose=False)
+        mock_get.assert_has_calls([get_call])
+        mock_fetch_open.assert_has_calls(
+            [call(channel, 0, 1, verbose=False) for channel in OPEN_CHANNELS]
+        )
