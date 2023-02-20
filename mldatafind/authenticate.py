@@ -2,9 +2,6 @@ import os
 import shutil
 import subprocess
 
-from ciecplib.ui import get_cert
-from ciecplib.x509 import check_cert, load_cert, write_cert
-
 _kinit_errs = {
     "Key table file '{keytab_location}' not found": (
         "kinit command failed because key table file "
@@ -85,6 +82,9 @@ def kinit():
 
 
 def make_cert(cert_path: str) -> None:
+    from ciecplib.ui import get_cert
+    from ciecplib.x509 import write_cert
+
     kinit()
     cert, key = get_cert(kerberos=True)
     write_cert(cert_path, cert, key)
@@ -110,6 +110,8 @@ def authenticate():
     see https://computing.docs.ligo.org/guide/auth/kerberos/
 
     """
+
+    from ciecplib.x509 import check_cert, load_cert
 
     cert_path = _validate_env("X509_USER_PROXY")
     if os.path.exists(cert_path):
