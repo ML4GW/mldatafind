@@ -3,5 +3,6 @@ channels:
   - conda-forge
 dependencies:
   - python=3.9
+  - krb5
   - python-ldas-tools-framecpp<3.0.0
   - python-nds2-client
