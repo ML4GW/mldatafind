@@ -68,7 +68,7 @@ class TestDataGeneratorRespectsMemory:
 
             f = next(it)
             time.sleep(1e-1)
-            loader.assert_has_calls(calls, any_order=True)
+            loader.assert_has_calls(calls)
 
     def test_with_chunking(self, segments, channels, s_in_gb, exc_type):
         find.MEMORY_LIMIT = 0.5
@@ -126,9 +126,9 @@ class TestDataGeneratorRespectsMemory:
             # got, and then 3 more to fill up the memory
             # after that one was gotten
             time.sleep(1e-3)
-            loader.assert_has_calls(calls[1:4], any_order=True)
+            loader.assert_has_calls(calls[1:4])
             with pytest.raises(AssertionError):
-                loader.assert_has_calls(calls[4:], any_order=True)
+                loader.assert_has_calls(calls[4:])
 
             # now finish iterating through and ensure
             # the generator has the appropriate length
@@ -139,6 +139,6 @@ class TestDataGeneratorRespectsMemory:
 
             # now make sure all the expected calls
             # to load have now been made
-            loader.assert_has_calls(calls[:7], any_order=True)
+            loader.assert_has_calls(calls[:7])
             with pytest.raises(AssertionError):
-                loader.assert_has_calls(calls[7:], any_order=True)
+                loader.assert_has_calls(calls[7:])
