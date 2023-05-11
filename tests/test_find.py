@@ -113,7 +113,7 @@ class TestDataGeneratorRespectsMemory:
             # only been called once on the first segment
             loader.assert_called_once_with(*calls[0].args)
 
-            # now load the next generator, which shoul
+            # now load the next generator, which should
             # have six segments, the last of which is
             # shorter than the rest
             subgen = next(it)

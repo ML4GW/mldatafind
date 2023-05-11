@@ -31,7 +31,7 @@ def query_segments(
     Only return segments of length greater than `min_duration`
 
     Args:
-        segment_names: Iterable of segment names to query
+        flags: Iterable of data flags to query
         start: Start time of segments
         end: End time of segments
         min_duration: Minimum length of intersected segments
