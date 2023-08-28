@@ -68,14 +68,14 @@ def query_segments(
                 # TODO: what's the error for an expired certificate?
                 raise
 
-        # try to authenticate then re-query
-        authenticate()
-        segments = DataQualityDict.query_dqsegdb(
-            flags,
-            start,
-            end,
-            **kwargs,
-        )
+            # try to authenticate then re-query
+            authenticate()
+            segments = DataQualityDict.query_dqsegdb(
+                flags,
+                start,
+                end,
+                **kwargs,
+            )
 
     # if open data flags are requested,
     # query them and combine with private flags
