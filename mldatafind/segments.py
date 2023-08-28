@@ -49,10 +49,10 @@ def query_segments(
     # split open data flags from private flags
     open_data_flags = list(filter(lambda x: x in OPEN_DATA_FLAGS, flags))
     flags = list(filter(lambda x: x not in OPEN_DATA_FLAGS, flags))
-    
+
     segments = DataQualityDict()
     # only try to query private flags if there are any
-    # otherwise we'll run into an error 
+    # otherwise we'll run into an error
     if flags:
         try:
             segments = DataQualityDict.query_dqsegdb(
@@ -62,7 +62,9 @@ def query_segments(
                 **kwargs,
             )
         except OSError as e:
-            if not str(e).startswith("Could not find the TLS certificate file"):
+            if not str(e).startswith(
+                "Could not find the TLS certificate file"
+            ):
                 # TODO: what's the error for an expired certificate?
                 raise
 
