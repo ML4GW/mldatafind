@@ -8,7 +8,8 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = ">=3.9,<3.12" 
-gwpy = "^3.0"
+gwosc = "^0.6.1" # for compatibility querying open data using gwpy < 3.0
+gwpy = "^2.1"
 ciecplib = "^0.7.1"
 requests-gssapi = "^1.2.3"
 
