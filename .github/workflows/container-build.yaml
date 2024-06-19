@@ -65,6 +65,8 @@ jobs:
           --entrypoint /bin/bash \
           quay.io/singularity/singularity:v3.8.1 \
           -c 'singularity build --sandbox /opt/sandbox apptainer.def'
+          ls
+          ls ..
 
     # run tests inside the sandbox;
     # if this is a push event, tar the sandbox
