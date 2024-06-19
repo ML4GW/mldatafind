@@ -60,6 +60,7 @@ jobs:
         docker run \
           --rm \
           -v ${{ github.workspace }}:/opt/mldatafind \
+          -v ${{ github.workspace }}/..:/opt/ \
           --workdir /opt/mldatafind \
           --privileged \
           --entrypoint /bin/bash \
@@ -78,6 +79,7 @@ jobs:
         docker run \
           --rm \
           -v ${{ github.workspace }}:/opt/mldatafind \
+          -v ${{ github.workspace }}/..:/opt/ \
           --workdir /opt/mldatafind/ \
           --privileged \
           --entrypoint /bin/bash \
