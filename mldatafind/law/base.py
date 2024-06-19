@@ -105,10 +105,12 @@ class DataTask(law.SandboxTask):
     def sandbox(self):
         return f"mldatafind::{self.image.resolve()}"
 
-    def sandbox_env(self, env):
+    def sandbox_env(self, env: dict[str, str]):
         # map data discovery env vars into the container
         env = super().sandbox_env(env)
         for envvar in DATAFIND_ENV_VARS:
             value = os.getenv(envvar)
             if value is not None:
                 env[envvar] = value
+
+        return env
