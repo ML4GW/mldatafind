@@ -8,8 +8,8 @@ from mldatafind.law.config import s3
 from mldatafind.law.parameters import PATH_LIKE
 
 
-# format for writing h5 files to s3
-# via bytes streams
+# format for writing h5 files
+# to s3 via bytes streams
 class BytesFormat(WrappedFormat):
     input = "bytes"
     output = "bytes"
@@ -19,8 +19,7 @@ class BytesFormat(WrappedFormat):
 Bytes = BytesFormat()
 
 
-# law targets are currently not
-# passing format correctly so do this for now
+# law targets compatible with luigi S3 targets
 class LawS3Target(S3Target):
     optional = False
 

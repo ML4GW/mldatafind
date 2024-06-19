@@ -6,7 +6,7 @@ from luigi.contrib.s3 import S3Client
 
 class s3(luigi.Config):
     """
-    Global S3 client configuration
+    Global S3 client configuration.
     """
 
     endpoint_url = luigi.Parameter(
