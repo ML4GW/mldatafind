@@ -2,7 +2,18 @@ name: mldatafind
 channels:
   - conda-forge
 dependencies:
+  # python/env dependencies
   - python=3.9
+  - pip
+  - poetry
+  - libgcc
+  - jsonargparse
+  # general GW/auth deps
   - krb5
-  - python-ldas-tools-framecpp
+  - ciecplib
+  - requests-gssapi
+  - gwpy=3.0.8
+  # frame file I/O dependencies
+  - python-ldas-tools-framecpp<3.0.0
   - python-nds2-client
+  - python-ligo-lw
