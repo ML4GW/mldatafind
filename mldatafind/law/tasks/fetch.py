@@ -1,14 +1,16 @@
 import os
 
+import h5py
 import law
 import luigi
-from aframe.tasks.data.condor.workflows import StaticMemoryWorkflow
-from aframe.tasks.data.segments import Query
 from luigi.util import inherits
 
+from mldatafind.fetch import fetch
 from mldatafind.law.base import DataTask
 from mldatafind.law.parameters import PathParameter
 from mldatafind.law.targets import s3_or_local
+from mldatafind.law.tasks.condor.workflows import StaticMemoryWorkflow
+from mldatafind.law.tasks.segments import Query
 
 
 @inherits(Query)
@@ -100,9 +102,6 @@ class Fetch(law.LocalWorkflow, StaticMemoryWorkflow, DataTask):
         return s3_or_local(fname)
 
     def run(self):
-        import h5py
-        from data.fetch.fetch import fetch
-
         start, duration = self.branch_data
         start = int(float(start))
         duration = int(float(duration))

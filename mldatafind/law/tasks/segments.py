@@ -1,12 +1,14 @@
 import luigi
-from aframe.parameters import PathParameter
-from aframe.targets import s3_or_local
-from aframe.tasks.data.base import AframeDataTask
+
+from mldatafind.law.base import DataTask
+from mldatafind.law.parameters import PathParameter
+from mldatafind.law.targets import s3_or_local
+from mldatafind.segments import DataQualityDict
 
 
-class Query(AframeDataTask):
+class Query(DataTask):
     """
-    This is a test
+    Law task to query data quality segments
     """
 
     start = luigi.FloatParameter(description="Start time of segments to query")
@@ -36,8 +38,6 @@ class Query(AframeDataTask):
         return flags
 
     def run(self):
-        from data.segments.segments import DataQualityDict
-
         flags = self.get_flags()
         segments = DataQualityDict.query_segments(
             flags,
