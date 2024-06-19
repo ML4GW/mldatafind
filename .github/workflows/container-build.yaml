@@ -97,5 +97,5 @@ jobs:
         tag: ${{ env.REGISTRY }}/${{ github.repository }}/${{ github.ref_name }}
       run: |
         export TAG_LC=${tag,,}
-        cat app.tar.gz | docker import --change "ENV PATH=${{ env.PATH }}" - $TAG_LC
+        cat ../app.tar.gz | docker import --change "ENV PATH=${{ env.PATH }}" - $TAG_LC
         docker push $TAG_LC
