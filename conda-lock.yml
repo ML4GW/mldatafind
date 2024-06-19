@@ -13,7 +13,7 @@
 version: 1
 metadata:
   content_hash:
-    linux-64: fe6acd32ab6f0b6318643b15a2754f7a427523648b643d77e7ffd1b038cde588
+    linux-64: c982bf7155a438399772d35e27e090804217b49aada56f57bab5994b9eec9fa0
   channels:
   - url: conda-forge
     used_env_vars: []
@@ -798,6 +798,19 @@ package:
   hash:
     md5: d645c6d2ac96843a2bfaccd2d62b3ac3
     sha256: ab6e9856c21709b7b517e940ae7028ae0737546122f83c2aa5d692860c3b149e
+  category: main
+  optional: false
+- name: libgcc
+  version: 7.2.0
+  manager: conda
+  platform: linux-64
+  dependencies:
+    libgcc-ng: '>=7.2.0'
+    libstdcxx-ng: '>=7.2.0'
+  url: https://conda.anaconda.org/conda-forge/linux-64/libgcc-7.2.0-h69d50b8_2.tar.bz2
+  hash:
+    md5: 9962126180acc1a4fec0c6aabe7c2459
+    sha256: fe7f1ac1ce89f37d7314760bf17fad8198435443358d570f620fb1dec33ca051
   category: main
   optional: false
 - name: libgcc-ng

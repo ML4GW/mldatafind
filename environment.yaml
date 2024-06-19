@@ -6,6 +6,7 @@ dependencies:
   - python=3.9
   - pip
   - poetry
+  - libgcc
   - jsonargparse
   # general GW/auth deps
   - krb5

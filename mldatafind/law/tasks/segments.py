@@ -23,9 +23,13 @@ class Query(DataTask):
         description="Data quality flag to query. If 'DATA', "
         "will query for open data segments."
     )
-    min_duration = luigi.FloatParameter(default=0)
+    min_duration = luigi.OptionalFloatParameter(
+        description="Minimum duration of segments to query. "
+        "Any segments of shorter length will be discarded",
+        default="",
+    )
 
-    retry_count = 3
+    retry_count = 5
 
     def output(self):
         return s3_or_local(self.segments_file, format="txt")
