@@ -2,6 +2,8 @@ from typing import List
 
 from gwpy.timeseries import TimeSeries, TimeSeriesDict
 
+from mldatafind.authenticate import authenticate
+
 # channel names that signal to fetch open data
 OPEN_DATA_CHANNELS = ["H1", "L1", "V1"]
 
@@ -29,6 +31,7 @@ def fetch(
     the kwargs so that jsonargparse can build
     a parser out of them.
     """
+    authenticate()
     open_data_channels = list(
         filter(lambda x: x in OPEN_DATA_CHANNELS, channels)
     )

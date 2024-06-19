@@ -2,6 +2,8 @@ from typing import Iterable, Optional
 
 from gwpy.segments import DataQualityDict, DataQualityFlag, SegmentList
 
+from mldatafind.authenticate import authenticate
+
 OPEN_DATA_FLAGS = ["H1_DATA", "L1_DATA", "V1_DATA"]
 O3A_END = 1253977218
 O3B_START = 1256655618
@@ -74,6 +76,7 @@ class DataQualityDict(DataQualityDict):
         min_duration: Optional[float] = None,
         **kwargs
     ) -> SegmentList:
+        authenticate()
         # if the requested time period
         # spans O3a to O3b, query the two
         # separately and append
