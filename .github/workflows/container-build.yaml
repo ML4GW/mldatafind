@@ -83,6 +83,7 @@ jobs:
           quay.io/singularity/singularity:v3.8.1 \
           -c 'singularity exec --env PATH=${{ env.PATH }} /opt/sandbox pytest && if [ "${{ github.event_name == 'push'}}" == "true" ]; then tar -czf /opt/app.tar.gz -C /opt/sandbox .; fi'
 
+
     # now copy the fs contents into an empty
     # container and push it to the registry,
     # using a lowercase version of the tag since
