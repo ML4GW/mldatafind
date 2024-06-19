@@ -1,8 +1,9 @@
 from pathlib import Path
-from typing import Union
+from typing import Union, get_args
 
 import luigi
 from cloudpathlib import CloudPath
+from luigi.parameter import OptionalParameterMixin
 
 PATH_LIKE = Union[CloudPath, Path, str]
 
@@ -31,3 +32,8 @@ class PathParameter(luigi.Parameter):
 
     def normalize(self, x):
         return self.parse(x)
+
+
+class OptionalPathParameter(OptionalParameterMixin, PathParameter):
+    expected_type = get_args(PATH_LIKE)
+    pass

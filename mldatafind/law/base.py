@@ -64,7 +64,7 @@ class DataSandbox(singularity.SingularitySandbox):
         # exist on the local cluster
         for dir in self.data_directories:
             if dir.exists():
-                volumes[dir] = dir
+                volumes[str(dir)] = str(dir)
 
         # bind users /local directory for
         # storing large tmp files,
@@ -87,16 +87,20 @@ class DataTask(law.SandboxTask):
     law SandboxTask for running mldatafind workflows
     """
 
-    image = luigi.Parameter(
+    image = luigi.PathParameter(
         default=os.getenv("MLDATAFIND_CONTAINER", ""),
         significant=False,
         description="Path to the singularity container to use for the task. "
         "Defaults to the `MLDATAFIND_CONTAINER` environment variable. ",
     )
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        print(self.sandbox)
+
     @property
     def sandbox(self):
-        return f"mldatafind::{self.image}"
+        return f"mldatafind::{self.image.resolve()}"
 
     def sandbox_env(self, env):
         # map data discovery env vars into the container

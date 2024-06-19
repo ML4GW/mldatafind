@@ -17,12 +17,12 @@ class LDGCondorWorkflow(htcondor.HTCondorWorkflow):
         description="Directory where store condor log files will be written"
     )
     accounting_group_user = luigi.Parameter(
-        "condors accounting group user name. Defaults to the "
+        description="Condors accounting group user name. Defaults to the "
         "`LIGO_USERNAME` environment variable",
         default=os.getenv("LIGO_USERNAME"),
     )
     accounting_group = luigi.Parameter(
-        "condor accounting group name. Defaults to the "
+        description="Condor accounting group name. Defaults to the "
         "`LIGO_GROUP` environment variable",
         default=os.getenv("LIGO_GROUP"),
     )

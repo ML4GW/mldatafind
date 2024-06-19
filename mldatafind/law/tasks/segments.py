@@ -13,7 +13,7 @@ class Query(DataTask):
     start = luigi.FloatParameter(description="Start time of segments to query")
     end = luigi.FloatParameter(description="End time of segments to query")
     segments_file = PathParameter(
-        description="Output path where segments are written"
+        description="Output path where segments are written",
     )
     ifos = luigi.ListParameter(
         description="List of ifos to query segments for. "

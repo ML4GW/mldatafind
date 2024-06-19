@@ -1,11 +1,9 @@
-import os
-
 import law
 import luigi
 from luigi.util import inherits
 
 from mldatafind.law.base import DataTask
-from mldatafind.law.parameters import PathParameter
+from mldatafind.law.parameters import OptionalPathParameter, PathParameter
 from mldatafind.law.targets import s3_or_local
 from mldatafind.law.tasks.condor.workflows import StaticMemoryWorkflow
 from mldatafind.law.tasks.segments import Query
@@ -20,6 +18,12 @@ class Fetch(law.LocalWorkflow, StaticMemoryWorkflow, DataTask):
     data_dir = PathParameter(
         description="Directory to store fetched data. "
         "Can be a local path or an s3 path."
+    )
+    segments_file = OptionalPathParameter(
+        description="Path where segments file will be stored. "
+        "If not provided, will use the "
+        "segments file from the Query task.",
+        default="",
     )
     sample_rate = luigi.FloatParameter(
         description="Rate at which fetched data will be sampled in Hz"
@@ -42,10 +46,8 @@ class Fetch(law.LocalWorkflow, StaticMemoryWorkflow, DataTask):
         if not str(self.data_dir).startswith("s3://"):
             self.data_dir.mkdir(exist_ok=True, parents=True)
 
-        if self.job_log and not os.path.isabs(self.job_log):
-            log_dir = os.path.join(self.data_dir, "logs")
-            os.makedirs(log_dir, exist_ok=True)
-            self.job_log = os.path.join(log_dir, self.job_log)
+        if not self.segments_file:
+            self.segments_file = self.data_dir / "segments.txt"
 
     @law.dynamic_workflow_condition
     def workflow_condition(self) -> bool:
@@ -63,11 +65,7 @@ class Fetch(law.LocalWorkflow, StaticMemoryWorkflow, DataTask):
         for segment in segments:
             segment = segment.split("\t")
             start, duration = map(float, segment[1::2])
-            step = (
-                duration
-                if self.max_duration is not None
-                else self.max_duration
-            )
+            step = duration if self.max_duration is None else self.max_duration
             num_steps = (duration - 1) // step + 1
 
             for j in range(int(num_steps)):
@@ -79,15 +77,7 @@ class Fetch(law.LocalWorkflow, StaticMemoryWorkflow, DataTask):
 
     def workflow_requires(self):
         reqs = super().workflow_requires()
-
-        kwargs = {}
-        if self.job_log:
-            log_file = law.LocalFileTarget(self.job_log)
-            log_file = log_file.parent.child("query.log", type="f")
-            kwargs["job_log"] = log_file.path
-        reqs["segments"] = Query.req(
-            self, segments_file=self.segments_file, **kwargs
-        )
+        reqs["segments"] = Query.req(self, segments_file=self.segments_file)
         return reqs
 
     @workflow_condition.output
