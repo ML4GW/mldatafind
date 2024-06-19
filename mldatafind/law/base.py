@@ -94,9 +94,12 @@ class DataTask(law.SandboxTask):
         "Defaults to the `MLDATAFIND_CONTAINER` environment variable. ",
     )
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        print(self.sandbox)
+    dev = luigi.BoolParameter(
+        default=False,
+        description="Run the task in development mode. "
+        "This will bind the local mldatafind repo into the container "
+        "so that code changes are reflected in the container.",
+    )
 
     @property
     def sandbox(self):

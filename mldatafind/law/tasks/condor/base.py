@@ -78,13 +78,16 @@ class LDGCondorWorkflow(htcondor.HTCondorWorkflow):
         # required for LDG data access
         environment = '"'
         for envvar in DATAFIND_ENV_VARS:
-            environment += f"{envvar}={os.getenv(envvar)} "
+            value = os.getenv(envvar)
+            if value is not None:
+                environment += f"{envvar}={value} "
 
         # forward current path and law config
         environment += f'PATH={os.getenv("PATH")} '
         environment += f"LAW_CONFIG_FILE={self.law_config} "
         environment += f"USER={os.getenv('USER')} "
         environment += f"TMPDIR={os.getenv('TMPDIR')} "
+        return environment
 
     def htcondor_output_directory(self):
         return law.LocalDirectoryTarget(self.condor_directory)
