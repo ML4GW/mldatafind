@@ -64,7 +64,7 @@ jobs:
           --privileged \
           --entrypoint /bin/bash \
           quay.io/singularity/singularity:v3.8.1 \
-          -c 'singularity build --sandbox /opt/mldatafind/sandbox apptainer.def'
+          -c 'singularity build --sandbox /opt/tmp/sandbox apptainer.def'
 
     # run tests inside the sandbox;
     # if this is a push event, tar the sandbox
@@ -80,7 +80,7 @@ jobs:
           --privileged \
           --entrypoint /bin/bash \
           quay.io/singularity/singularity:v3.8.1 \
-          -c 'singularity exec --env PATH=${{ env.PATH }} /opt/mldatafind/sandbox pytest && if [ "${{ github.event_name == 'push'}}" == "true" ]; then tar -czf /opt/mldatafind -C /opt/mldatafind .; fi'
+          -c 'singularity exec --env PATH=${{ env.PATH }} /opt/tmp/sandbox pytest && if [ "${{ github.event_name == 'push'}}" == "true" ]; then tar -czf /opt/mldatafind -C /opt/mldatafind .; fi'
 
     # now copy the fs contents into an empty
     # container and push it to the registry,
