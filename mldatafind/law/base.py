@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 
 import law
+import luigi
 from law.contrib import singularity
 from law.contrib.singularity.config import config_defaults
 
@@ -82,24 +83,25 @@ law.config.update(DataSandbox.config())
 
 
 class DataTask(law.SandboxTask):
-    """ """
+    """
+    law SandboxTask for running mldatafind workflows
+    """
 
-    @property
-    def default_image(self):
-        return "data.sif"
+    image = luigi.Parameter(
+        default=os.getenv("MLDATAFIND_CONTAINER", ""),
+        significant=False,
+        description="Path to the singularity container to use for the task. "
+        "Defaults to the `MLDATAFIND_CONTAINER` environment variable. ",
+    )
 
     @property
     def sandbox(self):
         return f"mldatafind::{self.image}"
 
     def sandbox_env(self, env):
+        # map data discovery env vars into the container
         env = super().sandbox_env(env)
-        # data discovery env vars
         for envvar in DATAFIND_ENV_VARS:
             value = os.getenv(envvar)
             if value is not None:
                 env[envvar] = value
-
-        # aws env vars
-        env["AWS_ENDPOINT_URL"] = os.getenv("AWS_ENDPOINT_URL", "")
-        return env
