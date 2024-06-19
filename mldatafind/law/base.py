@@ -7,7 +7,6 @@ from law.contrib.singularity.config import config_defaults
 
 root = Path(__file__).resolve().parent.parent.parent
 
-
 DATAFIND_ENV_VARS = [
     "KRB5_KTNAME",
     "X509_USER_PROXY",
@@ -52,7 +51,13 @@ class DataSandbox(singularity.SingularitySandbox):
         )
 
     def _get_volumes(self):
+
+        # if running in dev mode, mount the local
+        # mldatafind repo into the container so
+        # python code changes are reflected
         volumes = super()._get_volumes()
+        if self.task and getattr(self.task, "dev", False):
+            volumes[str(root)] = "/opt/mldatafind"
 
         # bind data directories if they
         # exist on the local cluster
@@ -76,7 +81,7 @@ class DataSandbox(singularity.SingularitySandbox):
 law.config.update(DataSandbox.config())
 
 
-class DataTask(law.SandboxTask, DataSandbox):
+class DataTask(law.SandboxTask):
     """ """
 
     @property
