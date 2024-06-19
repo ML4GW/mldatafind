@@ -1,13 +1,23 @@
 import luigi
-from aframe.tasks.data.condor.base import LDGCondorWorkflow
+
+from mldatafind.law.tasks.condor.base import LDGCondorWorkflow
 
 
 class StaticMemoryWorkflow(LDGCondorWorkflow):
+    """
+    Workflow that requests a fixed amount of memory for each job
+    """
+
     def append_memory(self, config):
         config.custom_content.append(("request_memory", self.request_memory))
 
 
 class DynamicMemoryWorklow(LDGCondorWorkflow):
+    """
+    Workflow that dynamically updates memory
+    based on the memory usage of the job
+    """
+
     max_memory = luigi.Parameter(default="7G")
 
     def append_memory(self, config):

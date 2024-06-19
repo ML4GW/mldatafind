@@ -1,11 +1,9 @@
 import os
 
-import h5py
 import law
 import luigi
 from luigi.util import inherits
 
-from mldatafind.fetch import fetch
 from mldatafind.law.base import DataTask
 from mldatafind.law.parameters import PathParameter
 from mldatafind.law.targets import s3_or_local
@@ -102,6 +100,10 @@ class Fetch(law.LocalWorkflow, StaticMemoryWorkflow, DataTask):
         return s3_or_local(fname)
 
     def run(self):
+        import h5py
+
+        from mldatafind.fetch import fetch
+
         start, duration = self.branch_data
         start = int(float(start))
         duration = int(float(duration))

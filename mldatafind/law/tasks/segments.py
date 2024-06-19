@@ -3,7 +3,6 @@ import luigi
 from mldatafind.law.base import DataTask
 from mldatafind.law.parameters import PathParameter
 from mldatafind.law.targets import s3_or_local
-from mldatafind.segments import DataQualityDict
 
 
 class Query(DataTask):
@@ -42,6 +41,8 @@ class Query(DataTask):
         return flags
 
     def run(self):
+        from mldatafind.segments import DataQualityDict
+
         flags = self.get_flags()
         segments = DataQualityDict.query_segments(
             flags,

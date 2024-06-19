@@ -4,8 +4,8 @@ import law
 import luigi
 from law.contrib import htcondor
 
-from mldatafind.parameters import PathParameter
-from mldatafind.tasks.data import DATAFIND_ENV_VARS
+from mldatafind.law.base import DATAFIND_ENV_VARS
+from mldatafind.law.parameters import PathParameter
 
 
 class LDGCondorWorkflow(htcondor.HTCondorWorkflow):
@@ -13,13 +13,30 @@ class LDGCondorWorkflow(htcondor.HTCondorWorkflow):
     Base class for law workflows that run via condor on LDG
     """
 
-    condor_directory = PathParameter()
-    accounting_group_user = luigi.Parameter(default=os.getenv("LIGO_USERNAME"))
-    accounting_group = luigi.Parameter(default=os.getenv("LIGO_GROUP"))
-    request_disk = luigi.Parameter(default="1024")
-    request_memory = luigi.Parameter(default="32678")
-    request_cpus = luigi.IntParameter(default=1)
+    condor_directory = PathParameter(
+        description="Directory where store condor log files will be written"
+    )
+    accounting_group_user = luigi.Parameter(
+        "condors accounting group user name. Defaults to the "
+        "`LIGO_USERNAME` environment variable",
+        default=os.getenv("LIGO_USERNAME"),
+    )
+    accounting_group = luigi.Parameter(
+        "condor accounting group name. Defaults to the "
+        "`LIGO_GROUP` environment variable",
+        default=os.getenv("LIGO_GROUP"),
+    )
+    request_disk = luigi.Parameter(
+        description="Disk space requested for each job", default="1024"
+    )
+    request_memory = luigi.Parameter(
+        description="Memory requested for each job", default="32678"
+    )
+    request_cpus = luigi.IntParameter(
+        description="Number of cpus requested for each job", default=1
+    )
 
+    # don't want to share these between condor tasks via .req()
     exclude_params_req = {"request_memory", "request_disk", "request_cpus"}
 
     def __init__(self, *args, **kwargs):
@@ -27,10 +44,6 @@ class LDGCondorWorkflow(htcondor.HTCondorWorkflow):
         self.htcondor_log_dir.touch()
         self.htcondor_output_directory().touch()
 
-        # update location of where htcondor
-        # job files are stored
-        # TODO: law PR that makes this configuration
-        # easier / more pythonic
         law.config.update(
             {
                 "job": {
@@ -67,22 +80,11 @@ class LDGCondorWorkflow(htcondor.HTCondorWorkflow):
         for envvar in DATAFIND_ENV_VARS:
             environment += f"{envvar}={os.getenv(envvar)} "
 
-        # aws endpoint for s3 transfers
-        environment += f'AWS_ENDPOINT_URL={os.getenv("AWS_ENDPOINT_URL")} '
-
         # forward current path and law config
         environment += f'PATH={os.getenv("PATH")} '
         environment += f"LAW_CONFIG_FILE={self.law_config} "
         environment += f"USER={os.getenv('USER')} "
         environment += f"TMPDIR={os.getenv('TMPDIR')} "
-
-        # forward any env variables that start with AFRAME_
-        # that the law config may need to parse
-        for envvar, value in os.environ.items():
-            if envvar.startswith("AFRAME_"):
-                environment += f"{envvar}={value} "
-        environment += '"'
-        return environment
 
     def htcondor_output_directory(self):
         return law.LocalDirectoryTarget(self.condor_directory)
