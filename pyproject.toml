@@ -16,6 +16,7 @@ cloudpathlib = "^0.18.1"
 pre-commit = "^2.16"
 pytest = "^7.1.3"
 ipykernel = "^6.16.2"
+conda-lock = "^2.5.1"
 
 [tool.black]
 line-length = 79
