@@ -77,6 +77,14 @@ class DataSandbox(singularity.SingularitySandbox):
         aws_dir = os.path.expanduser("~/.aws/")
         volumes[aws_dir] = aws_dir
         return volumes
+    
+    def _get_env(self):
+        env = super()._get_env()
+        for envvar in DATAFIND_ENV_VARS:
+            value = os.getenv(envvar)
+            if value is not None:
+                env[envvar] = value
+        return env
 
 
 law.config.update(DataSandbox.config())
@@ -101,16 +109,3 @@ class DataTask(law.SandboxTask):
         "so that code changes are reflected in the container.",
     )
 
-    @property
-    def sandbox(self):
-        return f"mldatafind::{self.image.resolve()}"
-
-    def sandbox_env(self, env: dict[str, str]):
-        # map data discovery env vars into the container
-        env = super().sandbox_env(env)
-        for envvar in DATAFIND_ENV_VARS:
-            value = os.getenv(envvar)
-            if value is not None:
-                env[envvar] = value
-
-        return env
