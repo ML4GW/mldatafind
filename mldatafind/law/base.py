@@ -70,14 +70,15 @@ class DataSandbox(singularity.SingularitySandbox):
         # storing large tmp files,
         # e.g. for local storage before
         # being dumped to s3 by luigi
-        tmpdir = f"/local/{os.getenv('USER')}"
-        volumes[tmpdir] = tmpdir
+        tmpdir = Path(f"/local/{os.getenv('USER')}")
+        if tmpdir.exists():
+            volumes[tmpdir] = tmpdir
 
         # bind aws directory that contains s3 credentials
         aws_dir = os.path.expanduser("~/.aws/")
         volumes[aws_dir] = aws_dir
         return volumes
-    
+
     def _get_env(self):
         env = super()._get_env()
         for envvar in DATAFIND_ENV_VARS:
@@ -108,4 +109,3 @@ class DataTask(law.SandboxTask):
         "This will bind the local mldatafind repo into the container "
         "so that code changes are reflected in the container.",
     )
-
