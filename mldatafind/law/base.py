@@ -63,7 +63,7 @@ class DataSandbox(singularity.SingularitySandbox):
         # storing large tmp files,
         # e.g. for local storage before
         # being dumped to s3 by luigi
-        tmpdir = Path(f"/local/{os.getenv('USER')}")
+        tmpdir = str(Path(f"/local/{os.getenv('USER')}"))
         if tmpdir.exists():
             volumes[tmpdir] = tmpdir
 
@@ -94,11 +94,4 @@ class DataTask(law.SandboxTask):
         significant=False,
         description="Path to the singularity container to use for the task. "
         "Defaults to the `MLDATAFIND_CONTAINER` environment variable. ",
-    )
-
-    dev = luigi.BoolParameter(
-        default=False,
-        description="Run the task in development mode. "
-        "This will bind the local mldatafind repo into the container "
-        "so that code changes are reflected in the container.",
     )
