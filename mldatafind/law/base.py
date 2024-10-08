@@ -63,7 +63,7 @@ class DataSandbox(singularity.SingularitySandbox):
         # storing large tmp files,
         # e.g. for local storage before
         # being dumped to s3 by luigi
-        tmpdir = str(Path(f"/local/{os.getenv('USER')}"))
+        tmpdir = Path(f"/local/{os.getenv('USER')}")
         if tmpdir.exists():
             tmpdir = str(tmpdir)
             volumes[tmpdir] = tmpdir
