@@ -65,6 +65,7 @@ class DataSandbox(singularity.SingularitySandbox):
         # being dumped to s3 by luigi
         tmpdir = str(Path(f"/local/{os.getenv('USER')}"))
         if tmpdir.exists():
+            tmpdir = str(tmpdir)
             volumes[tmpdir] = tmpdir
 
         # bind aws directory that contains s3 credentials
