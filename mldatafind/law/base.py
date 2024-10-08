@@ -52,14 +52,7 @@ class DataSandbox(singularity.SingularitySandbox):
         )
 
     def _get_volumes(self):
-
-        # if running in dev mode, mount the local
-        # mldatafind repo into the container so
-        # python code changes are reflected
         volumes = super()._get_volumes()
-        if self.task and getattr(self.task, "dev", False):
-            volumes[str(root)] = "/opt/mldatafind"
-
         # bind data directories if they
         # exist on the local cluster
         for dir in self.data_directories:
@@ -70,8 +63,9 @@ class DataSandbox(singularity.SingularitySandbox):
         # storing large tmp files,
         # e.g. for local storage before
         # being dumped to s3 by luigi
-        tmpdir = f"/local/{os.getenv('USER')}"
-        volumes[tmpdir] = tmpdir
+        tmpdir = Path(f"/local/{os.getenv('USER')}")
+        if tmpdir.exists():
+            volumes[tmpdir] = tmpdir
 
         # bind aws directory that contains s3 credentials
         aws_dir = os.path.expanduser("~/.aws/")
