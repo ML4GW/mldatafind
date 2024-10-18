@@ -1,4 +1,0 @@
-Dockerfile
-.dockerignore
-.git
-**/__pycache__/
