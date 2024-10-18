@@ -2,7 +2,7 @@
 name = "mldatafind"
 version = "0.1.0"
 description = "Luigi/Law Tasks for streamlining gravitational wave data discovery"
-authors = ["ethan.marx <ethan.marx@ligo.org>"]
+authors = ["Ethan Marx <emarx@mit.edu>"]
 license = "MIT"
 readme = "README.md"
 
