@@ -64,6 +64,11 @@ class LDGCondorWorkflow(htcondor.HTCondorWorkflow):
     @property
     def job_file_dir(self):
         return self.htcondor_output_directory().child("jobs", type="d").path
+    
+    def htcondor_create_job_file_factory(self, **kwargs):
+        # set the job file dir to proper location
+        kwargs["dir"] = self.job_file_dir
+        return super().htcondor_create_job_file_factory(**kwargs)
 
     def htcondor_create_job_file_factory(self, **kwargs):
         # set the job file dir to proper location
