@@ -90,7 +90,6 @@ class LDGCondorWorkflow(htcondor.HTCondorWorkflow):
         environment += f'PATH={os.getenv("PATH")} '
         environment += f"LAW_CONFIG_FILE={self.law_config} "
         environment += f"USER={os.getenv('USER')} "
-        environment += f"TMPDIR={os.getenv('TMPDIR')} "
         return environment
 
     def htcondor_output_directory(self):
