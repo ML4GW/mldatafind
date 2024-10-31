@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "mldatafind"
-version = "0.1.1"
+version = "0.1.2"
 description = "Luigi/Law Tasks for streamlining gravitational wave data discovery"
 authors = ["Ethan Marx <emarx@mit.edu>"]
 license = "MIT"
