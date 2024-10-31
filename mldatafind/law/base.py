@@ -63,10 +63,10 @@ class DataSandbox(singularity.SingularitySandbox):
         # storing large tmp files,
         # e.g. for local storage before
         # being dumped to s3 by luigi
-        tmpdir = Path(f"/local/{os.getenv('USER')}")
-        if tmpdir.exists():
-            tmpdir = str(tmpdir)
-            volumes[tmpdir] = tmpdir
+        local = Path(f"/local/{os.getenv('USER')}")
+        if local.exists():
+            local = str(local)
+            volumes[local] = local
 
         # bind aws directory that contains s3 credentials
         aws_dir = os.path.expanduser("~/.aws/")
