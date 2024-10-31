@@ -70,11 +70,6 @@ class LDGCondorWorkflow(htcondor.HTCondorWorkflow):
         kwargs["dir"] = self.job_file_dir
         return super().htcondor_create_job_file_factory(**kwargs)
 
-    def htcondor_create_job_file_factory(self, **kwargs):
-        # set the job file dir to proper location
-        kwargs["dir"] = self.job_file_dir
-        return super().htcondor_create_job_file_factory(**kwargs)
-
     @property
     def law_config(self):
         path = os.getenv("LAW_CONFIG_FILE", "")
