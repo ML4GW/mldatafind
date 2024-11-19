@@ -31,7 +31,7 @@ def fetch(
     the kwargs so that jsonargparse can build
     a parser out of them.
     """
-    authenticate()
+
     open_data_channels = list(
         filter(lambda x: x in OPEN_DATA_CHANNELS, channels)
     )
@@ -40,6 +40,8 @@ def fetch(
     # fetch data from nds2
     data = TimeSeriesDict()
     if channels:
+        # only auth if we have non open channels to fetch
+        authenticate()
         for channel in channels:
             ifo = channel.split(":")[0]
             data[ifo] = TimeSeries.get(

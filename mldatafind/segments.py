@@ -23,8 +23,6 @@ class DataQualityDict(DataQualityDict):
                 # TODO: what's the error for an expired certificate?
                 raise
 
-            # try to authenticate then re-query
-            # authenticate()
             return cls.query_dqsegdb(flags, start, end, **kwargs)
 
     @classmethod
@@ -55,6 +53,8 @@ class DataQualityDict(DataQualityDict):
 
         segments = cls()
         if flags:
+            # only auth if we have non open flags to fetch
+            authenticate()
             segments.update(cls.query_non_open(flags, start, end, **kwargs))
         if open_data_flags:
             segments.update(
@@ -76,7 +76,6 @@ class DataQualityDict(DataQualityDict):
         min_duration: Optional[float] = None,
         **kwargs
     ) -> SegmentList:
-        authenticate()
         # if the requested time period
         # spans O3a to O3b, query the two
         # separately and append
