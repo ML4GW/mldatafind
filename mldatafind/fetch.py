@@ -76,5 +76,7 @@ def fetch(
             epoch=lal_data.epoch,
             dt=lal_data.deltaT,
         )
+    else:
+        raise ValueError(f"Invalid resampling method {resample_method}")
 
     return data
