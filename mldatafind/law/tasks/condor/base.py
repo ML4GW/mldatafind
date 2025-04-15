@@ -87,7 +87,7 @@ class LDGCondorWorkflow(htcondor.HTCondorWorkflow):
                 environment += f"{envvar}={value} "
 
         # forward current path and law config
-        environment += f'PATH={os.getenv("PATH")} '
+        environment += f"PATH={os.getenv('PATH')} "
         environment += f"LAW_CONFIG_FILE={self.law_config} "
         environment += f"USER={os.getenv('USER')} "
         return environment

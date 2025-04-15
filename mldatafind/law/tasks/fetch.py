@@ -37,6 +37,10 @@ class Fetch(law.LocalWorkflow, StaticMemoryWorkflow, DataTask):
         "Default is no maximum duration.",
         default="",
     )
+    resample_method = luigi.Parameter(
+        description="Resampling method to use. Either 'gwpy' or 'lal'.",
+        default="gwpy",
+    )
     prefix = luigi.Parameter(default="background")
 
     exclude_params_req = {"condor_directory"}
@@ -103,6 +107,7 @@ class Fetch(law.LocalWorkflow, StaticMemoryWorkflow, DataTask):
             start + duration,
             self.channels,
             self.sample_rate,
+            resample_method=self.resample_method,
         )
         size = int(duration * self.sample_rate)
         with self.output().open("w") as f:

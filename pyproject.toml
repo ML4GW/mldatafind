@@ -1,43 +1,39 @@
-[tool.poetry]
+[project]
 name = "mldatafind"
 version = "0.1.4"
 description = "Luigi/Law Tasks for streamlining gravitational wave data discovery"
-authors = ["Ethan Marx <emarx@mit.edu>"]
-license = "MIT"
+authors = [{ name = "Ethan Marx", email = "emarx@mit.edu" }]
+requires-python = ">=3.9,<3.13"
 readme = "README.md"
+license = "MIT"
+dependencies = [
+    "luigi>=3.5.1,<4",
+    "law>=0.1.19,<0.2",
+    "cloudpathlib>=0.18.1,<0.19",
+    "boto3>=1.34.4,<2",
+]
 
-[tool.poetry.dependencies]
-python = ">=3.9,<3.13" 
-luigi = "^3.5.1"
-law = "^0.1.19"
-cloudpathlib = "^0.18.1"
-boto3 = "^1.34.4"
-
-[tool.poetry.group.dev.dependencies]
-pre-commit = "^2.16"
-pytest = "^7.1.3"
-ipykernel = "^6.16.2"
-conda-lock = "^2.5.1"
-
-[tool.black]
-line-length = 79
-include = '\.pyi?$'
-exclude = '''
-/(
-    \.git
-  | \.tox
-  | _build
-  | dist
-  | docs
-)/
-'''
-
-
-[tool.isort]
-known_first_party = ["mldatafind"]
-multi_line_output = 3
-include_trailing_comma = true
+[dependency-groups]
+dev = [
+    "pre-commit~=2.16",
+    "pytest>=7.1.3,<8",
+    "ipykernel>=6.16.2,<7",
+    "conda-lock>=2.5.1,<3",
+]
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+line-length = 79
+extend-exclude = ["docs"]
+
+[tool.ruff.lint]
+mccabe = {"max-complexity" = 18}
+select = ["B", "C", "E", "F", "W",  "B9"]
+ignore = ["W605", "E203"]  # ignore for consistency with black
+
+# ignore asterisk imports and unused
+# import errors in __init__ files
+per-file-ignores =  {"**/__init__.py" = ["F401", "F403"]}

@@ -17,23 +17,27 @@ apt-get clean
 /bin/bash /root/.bashrc
 micromamba create -p /opt/env -f /opt/mldatafind/conda-lock.yml
 
-# install poetry so we can install local deps of deps editably
+# install uv so we can install local deps of deps editably
 micromamba run -p /opt/env python -m \
-    pip install --no-build-isolation \
-	poetry 
+    pip install --no-build-isolation uv
 
+cd /opt/mldatafind
 micromamba run -p /opt/env \
-    poetry config virtualenvs.create false
+    uv export --frozen --all-extras -o requirements.txt
 
-cd /opt/mldatafind/
+# Needs to be pip sync to discover conda env
 micromamba run -p /opt/env \
-    poetry install 
+    uv pip install -r requirements.txt
 
 # initialize our shell so that we can execute
 # commands in our environment at run time
 micromamba shell init --shell=bash --root-prefix=~/micromamba
 
 export PATH=/opt/env/bin:$PATH
+echo export PATH=$PATH >> /etc/profile
+
+%environment
+    export PATH=/env/bin:$PATH
 
 %runscript
 #!/bin/bash
