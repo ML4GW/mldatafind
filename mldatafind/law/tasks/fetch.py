@@ -38,7 +38,7 @@ class Fetch(law.LocalWorkflow, StaticMemoryWorkflow, DataTask):
         default="",
     )
     resample_method = luigi.Parameter(
-        description="Resampling method to use. " "Either 'gwpy' or 'lal'.",
+        description="Resampling method to use. Either 'gwpy' or 'lal'.",
         default="gwpy",
     )
     prefix = luigi.Parameter(default="background")
