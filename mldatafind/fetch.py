@@ -1,5 +1,6 @@
-from typing import List
+from typing import List, Literal
 
+import lal
 from gwpy.timeseries import TimeSeries, TimeSeriesDict
 
 from mldatafind.authenticate import authenticate
@@ -25,6 +26,7 @@ def fetch(
     nproc: int = 3,
     verbose: bool = True,
     allow_tape: bool = True,
+    resample_method: Literal["gwpy", "lal"] = "gwpy",
 ) -> TimeSeriesDict:
     """
     Simple wrapper to annotate and simplify
@@ -64,5 +66,15 @@ def fetch(
         )
         data.update(open_data_ts_dict)
 
-    data = data.resample(sample_rate)
+    if resample_method == "gwpy":
+        data = data.resample(sample_rate)
+    elif resample_method == "lal":
+        lal_data = data.to_lal()
+        lal.ResampleREAL8TimeSeries(lal_data, float(1 / sample_rate))
+        data = TimeSeries(
+            lal_data.data.data,
+            epoch=lal_data.epoch,
+            dt=lal_data.deltaT,
+        )
+
     return data
