@@ -69,13 +69,15 @@ def fetch(
     if resample_method == "gwpy":
         data = data.resample(sample_rate)
     elif resample_method == "lal":
-        lal_data = data.to_lal()
-        lal.ResampleREAL8TimeSeries(lal_data, float(1 / sample_rate))
-        data = TimeSeries(
-            lal_data.data.data,
-            epoch=lal_data.epoch,
-            dt=lal_data.deltaT,
-        )
+        for key, ts in data.items():
+            lal_data = ts.to_lal()
+            lal.ResampleREAL8TimeSeries(lal_data, float(1 / sample_rate))
+            lal_data = TimeSeries(
+                lal_data.data.data,
+                epoch=lal_data.epoch,
+                dt=lal_data.deltaT,
+            )
+            data[key] = lal_data
     else:
         raise ValueError(f"Invalid resampling method {resample_method}")
 
