@@ -1,5 +1,5 @@
 from typing import List, Literal
-
+import numpy as np
 import lal
 from gwpy.timeseries import TimeSeries, TimeSeriesDict
 
@@ -70,7 +70,7 @@ def fetch(
         data = data.resample(sample_rate)
     elif resample_method == "lal":
         for key, ts in data.items():
-            lal_data = ts.to_lal()
+            lal_data = ts.astype(np.float64).to_lal()
             lal.ResampleREAL8TimeSeries(lal_data, float(1 / sample_rate))
             lal_data = TimeSeries(
                 lal_data.data.data,
