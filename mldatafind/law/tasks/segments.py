@@ -16,11 +16,13 @@ class Query(DataTask):
         description="Output path where segments are written",
     )
     ifos = luigi.ListParameter(
-        description="List of ifos to query segments for. "
+        description="List of ifos for which "
+        "to query segments, and strain data. "
     )
-    flag = luigi.Parameter(
-        description="Data quality flag to query. If 'DATA', "
-        "will query for open data segments."
+    flags = luigi.ListParameter(
+        description="Data quality flag to query for each ifo. "
+        "If '{ifo}_DATA', will query for open data segments. "
+        "Expect one value per ifo in `ifos`. "
     )
     min_duration = luigi.OptionalFloatParameter(
         description="Minimum duration of segments to query. "
@@ -33,19 +35,11 @@ class Query(DataTask):
     def output(self):
         return s3_or_local(self.segments_file, format="txt")
 
-    def get_flags(self):
-        if self.flag == "DATA":
-            flags = [f"{ifo}_DATA" for ifo in self.ifos]  # open data flags
-        else:
-            flags = [f"{ifo}:{self.flag}" for ifo in self.ifos]
-        return flags
-
     def run(self):
         from mldatafind.segments import DataQualityDict
 
-        flags = self.get_flags()
         segments = DataQualityDict.query_segments(
-            flags,
+            self.flags,
             self.start,
             self.end,
             self.min_duration,
