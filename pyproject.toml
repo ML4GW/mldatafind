@@ -1,6 +1,6 @@
 [project]
 name = "mldatafind"
-version = "0.1.6"
+version = "0.1.7"
 description = "Luigi/Law Tasks for streamlining gravitational wave data discovery"
 authors = [{ name = "Ethan Marx", email = "emarx@mit.edu" }]
 requires-python = ">=3.10,<3.13"
