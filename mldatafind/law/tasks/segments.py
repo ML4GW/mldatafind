@@ -18,9 +18,10 @@ class Query(DataTask):
     ifos = luigi.ListParameter(
         description="List of ifos to query segments for. "
     )
-    flag = luigi.Parameter(
-        description="Data quality flag to query. If 'DATA', "
-        "will query for open data segments."
+    flags = luigi.ListParameter(
+        description="Data quality flag to query for each ifo. If 'DATA', "
+        "will query for open data segments. "
+        "Expect one value per ifo in `ifos`. "
     )
     min_duration = luigi.OptionalFloatParameter(
         description="Minimum duration of segments to query. "
@@ -34,10 +35,13 @@ class Query(DataTask):
         return s3_or_local(self.segments_file, format="txt")
 
     def get_flags(self):
-        if self.flag == "DATA":
-            flags = [f"{ifo}_DATA" for ifo in self.ifos]  # open data flags
-        else:
-            flags = [f"{ifo}:{self.flag}" for ifo in self.ifos]
+        flags = []
+        for ifo, flag in zip(self.ifos, self.flags, strict=True):
+            if flag == "DATA":
+                flag = f"{ifo}_DATA"  # open data flags
+            else:
+                flag = f"{ifo}:{flag}"
+            flags.append(flag)
         return flags
 
     def run(self):
