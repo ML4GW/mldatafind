@@ -48,7 +48,7 @@ class DataSandbox(singularity.SingularitySandbox):
         to enable local data discovery
         """
         return map(
-            Path, ["/cvmfs", "/hdfs", "/gpfs", "/ceph", "/hadoop", "/archive"]
+            Path, ["/cvmfs", "/hdfs", "/gpfs", "/ceph", "/hadoop", "/archive", "/work/hdd/bcse"]
         )
 
     def _get_volumes(self):
@@ -79,6 +79,10 @@ class DataSandbox(singularity.SingularitySandbox):
             value = os.getenv(envvar)
             if value is not None:
                 env[envvar] = value
+
+        # forward law config file to the container
+        # so tasks can read parameters from it
+        env["LAW_CONFIG_FILE"] = os.getenv("LAW_CONFIG_FILE", "")
         return env
 
 

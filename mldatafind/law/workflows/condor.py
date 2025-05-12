@@ -7,14 +7,14 @@ from law.contrib import htcondor
 from mldatafind.law.base import DATAFIND_ENV_VARS
 from mldatafind.law.parameters import PathParameter
 
-
 class LDGCondorWorkflow(htcondor.HTCondorWorkflow):
     """
     Base class for law workflows that run via condor on LDG
     """
 
     condor_directory = PathParameter(
-        description="Directory where store condor log files will be written"
+        description="Directory where store condor log files will be written",
+        default=""
     )
     accounting_group_user = luigi.Parameter(
         description="Condors accounting group user name. Defaults to the "
@@ -41,8 +41,6 @@ class LDGCondorWorkflow(htcondor.HTCondorWorkflow):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.htcondor_log_dir.touch()
-        self.htcondor_output_directory().touch()
 
         law.config.update(
             {
@@ -57,9 +55,11 @@ class LDGCondorWorkflow(htcondor.HTCondorWorkflow):
     def name(self):
         return self.__class__.__name__.lower()
 
-    @property
-    def htcondor_log_dir(self):
-        return law.LocalDirectoryTarget(self.condor_directory / "logs")
+    def htcondor_log_directory(self):
+        target = law.LocalDirectoryTarget(self.condor_directory)
+        if not target.exists():
+            target.makedirs()
+        return 
 
     @property
     def job_file_dir(self):
@@ -93,7 +93,10 @@ class LDGCondorWorkflow(htcondor.HTCondorWorkflow):
         return environment
 
     def htcondor_output_directory(self):
-        return law.LocalDirectoryTarget(self.condor_directory)
+        target = law.LocalDirectoryTarget(self.condor_directory) 
+        if not target.exists():
+            target.makedirs()
+        return target 
 
     def htcondor_use_local_scheduler(self):
         return True
@@ -108,7 +111,7 @@ class LDGCondorWorkflow(htcondor.HTCondorWorkflow):
                 (
                     output,
                     os.path.join(
-                        self.htcondor_log_dir.path,
+                        self.htcondor_log_directory().path,
                         f"{self.name}-$(ProcID).{ext}",
                     ),
                 )
@@ -130,3 +133,44 @@ class LDGCondorWorkflow(htcondor.HTCondorWorkflow):
         self.append_memory(config)
         self.append_logs(config)
         return config
+
+
+class StaticMemoryWorkflow(LDGCondorWorkflow):
+    """
+    Workflow that requests a fixed amount of memory for each job
+    """
+
+    def append_memory(self, config):
+        config.custom_content.append(("request_memory", self.request_memory))
+
+
+class DynamicMemoryWorkflow(LDGCondorWorkflow):
+    """
+    Workflow that dynamically updates memory
+    based on the memory usage of the job
+    """
+
+    max_memory = luigi.Parameter(default="7G")
+
+    def append_memory(self, config):
+        config.custom_content.append(
+            ("+InitialRequestMemory", self.request_memory)
+        )
+        config.custom_content.append(
+            (
+                "request_memory",
+                f"ifthenelse(isUndefined(MemoryUsage), {self.request_memory}, int(3*MemoryUsage))",  # noqa
+            )
+        )
+        config.custom_content.append(
+            (
+                "periodic_release",
+                "(HoldReasonCode =?= 26 || HoldReasonCode =?= 34) && (JobStatus == 5)",  # noqa
+            )
+        )
+        config.custom_content.append(
+            (
+                "periodic_remove",
+                f"(JobStatus == 1) && MemoryUsage >= {self.max_memory}",
+            )
+        )

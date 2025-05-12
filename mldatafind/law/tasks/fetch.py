@@ -5,16 +5,16 @@ from luigi.util import inherits
 from mldatafind.law.base import DataTask
 from mldatafind.law.parameters import OptionalPathParameter, PathParameter
 from mldatafind.law.targets import s3_or_local
-from mldatafind.law.tasks.condor.workflows import StaticMemoryWorkflow
+from mldatafind.law.workflows import StaticMemoryWorkflow
+from mldatafind.law.workflows.slurm import DeltaSlurmWorkflow
 from mldatafind.law.tasks.segments import Query
 
 
 @inherits(Query)
-class Fetch(law.LocalWorkflow, StaticMemoryWorkflow, DataTask):
+class Fetch(law.LocalWorkflow, DeltaSlurmWorkflow, StaticMemoryWorkflow, DataTask):
     """
     Law workflow for fetching strain data
     """
-
     data_dir = PathParameter(
         description="Directory to store fetched data. "
         "Can be a local path or an s3 path."
@@ -43,7 +43,7 @@ class Fetch(law.LocalWorkflow, StaticMemoryWorkflow, DataTask):
     )
     prefix = luigi.Parameter(default="background")
 
-    exclude_params_req = {"condor_directory"}
+    exclude_params_req = {"condor_directory", "slurm_directory"}
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
