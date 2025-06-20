@@ -1,6 +1,6 @@
 [project]
 name = "mldatafind"
-version = "0.1.7"
+version = "0.1.8"
 description = "Luigi/Law Tasks for streamlining gravitational wave data discovery"
 authors = [{ name = "Ethan Marx", email = "emarx@mit.edu" }]
 requires-python = ">=3.10,<3.13"
@@ -12,6 +12,7 @@ dependencies = [
     "cloudpathlib>=0.18.1,<0.19",
     "boto3>=1.34.4,<2",
     "gwpy>=3.0.12",
+    "htgettoken>=2.2",
 ]
 
 [dependency-groups]

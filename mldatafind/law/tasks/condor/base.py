@@ -127,6 +127,9 @@ class LDGCondorWorkflow(htcondor.HTCondorWorkflow):
         )
         config.custom_content.append(("request_disk", self.request_disk))
         config.custom_content.append(("request_cpus", self.request_cpus))
+
+        # for scitoken use
+        config.custom_content.append(("use_oauth_services", "scitokens"))
         self.append_memory(config)
         self.append_logs(config)
         return config

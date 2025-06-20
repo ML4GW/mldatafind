@@ -1,3 +1,7 @@
+"""
+x509 auth still used for, e.g. nds2 querying
+"""
+
 import os
 import shutil
 import subprocess
