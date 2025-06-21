@@ -2,7 +2,6 @@ from typing import List, Literal
 import numpy as np
 import lal
 from gwpy.timeseries import TimeSeries, TimeSeriesDict
-
 from mldatafind.authenticate import authenticate
 
 # channel names that signal to fetch open data
@@ -39,10 +38,9 @@ def fetch(
     )
     channels = list(filter(lambda x: x not in OPEN_DATA_CHANNELS, channels))
 
-    # fetch data from nds2
+    # fetch data from nds2, or local datafind server
     data = TimeSeriesDict()
     if channels:
-        # only auth if we have non open channels to fetch
         authenticate()
         for channel in channels:
             ifo = channel.split(":")[0]

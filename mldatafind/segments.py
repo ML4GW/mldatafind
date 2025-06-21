@@ -2,7 +2,7 @@ from typing import Iterable, Optional
 
 from gwpy.segments import DataQualityDict, DataQualityFlag, SegmentList
 
-from mldatafind.authenticate import authenticate
+from mldatafind.authenticate.scitoken import authenticate
 
 OPEN_DATA_FLAGS = ["H1_DATA", "L1_DATA", "V1_DATA"]
 O3A_END = 1253977218
